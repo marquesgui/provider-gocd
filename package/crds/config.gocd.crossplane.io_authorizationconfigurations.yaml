@@ -4,18 +4,18 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.16.5
-  name: mytypes.sample.template.crossplane.io
+  name: authorizationconfigurations.config.gocd.crossplane.io
 spec:
-  group: sample.template.crossplane.io
+  group: config.gocd.crossplane.io
   names:
     categories:
     - crossplane
     - managed
-    - template
-    kind: MyType
-    listKind: MyTypeList
-    plural: mytypes
-    singular: mytype
+    - gocd
+    kind: AuthorizationConfiguration
+    listKind: AuthorizationConfigurationList
+    plural: authorizationconfigurations
+    singular: authorizationconfiguration
   scope: Cluster
   versions:
   - additionalPrinterColumns:
@@ -34,7 +34,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: A MyType is an example API type.
+        description: An AuthorizationConfiguration is an example API type.
         properties:
           apiVersion:
             description: |-
@@ -54,7 +54,8 @@ spec:
           metadata:
             type: object
           spec:
-            description: A MyTypeSpec defines the desired state of a MyType.
+            description: An AuthorizationConfigurationSpec defines the desired state
+              of an AuthorizationConfiguration.
             properties:
               deletionPolicy:
                 default: Delete
@@ -71,12 +72,38 @@ spec:
                 - Delete
                 type: string
               forProvider:
-                description: MyTypeParameters are the configurable fields of a MyType.
+                description: AuthorizationConfigurationParameters are the configurable
+                  fields of an AuthorizationConfiguration.
                 properties:
-                  configurableField:
+                  allowOnlyKnowUsersToLogin:
+                    description: Allow only those users to login who have explicitly
+                      been added by an administrator.
+                    type: boolean
+                  id:
+                    description: The identifier of the authorization configuration.
                     type: string
+                  pluginId:
+                    description: The plugin identifier of the authorization plugin.
+                    type: string
+                  properties:
+                    description: The list of configuration properties that represent
+                      the configuration of this authorization configuration.
+                    items:
+                      properties:
+                        key:
+                          type: string
+                        value:
+                          type: string
+                      required:
+                      - key
+                      - value
+                      type: object
+                    type: array
                 required:
-                - configurableField
+                - allowOnlyKnowUsersToLogin
+                - id
+                - pluginId
+                - properties
                 type: object
               managementPolicies:
                 default:
@@ -246,17 +273,69 @@ spec:
             - forProvider
             type: object
           status:
-            description: A MyTypeStatus represents the observed state of a MyType.
+            description: An AuthorizationConfigurationStatus represents the observed
+              state of an AuthorizationConfiguration.
             properties:
               atProvider:
-                description: MyTypeObservation are the observable fields of a MyType.
+                description: AuthorizationConfigurationObservation are the observable
+                  fields of an AuthorizationConfiguration.
                 properties:
-                  configurableField:
+                  allowOnlyKnowUsersToLogin:
+                    description: Allow only those users to login who have explicitly
+                      been added by an administrator.
+                    type: boolean
+                  id:
+                    description: The identifier of the authorization configuration.
                     type: string
-                  observableField:
+                  links:
+                    properties:
+                      doc:
+                        properties:
+                          href:
+                            type: string
+                        required:
+                        - href
+                        type: object
+                      find:
+                        properties:
+                          href:
+                            type: string
+                        required:
+                        - href
+                        type: object
+                      self:
+                        properties:
+                          href:
+                            type: string
+                        required:
+                        - href
+                        type: object
+                    required:
+                    - doc
+                    - find
+                    - self
+                    type: object
+                  pluginId:
+                    description: The plugin identifier of the authorization plugin.
+                    type: string
+                  properties:
+                    description: The list of configuration properties that represent
+                      the configuration of this authorization configuration.
+                    items:
+                      properties:
+                        key:
+                          type: string
+                        value:
+                          type: string
+                      required:
+                      - key
+                      - value
+                      type: object
+                    type: array
+                  transactionId:
                     type: string
                 required:
-                - configurableField
+                - links
                 type: object
               conditions:
                 description: Conditions of the resource.

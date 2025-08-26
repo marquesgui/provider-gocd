@@ -1,11 +1,12 @@
 /*
+Package pipelineconfig
 Copyright 2025 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,16 +14,18 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-
-package mytype
+package pipelineconfig
 
 import (
 	"context"
-	"fmt"
+	"encoding/json"
 
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/feature"
+	"github.com/marquesgui/provider-gocd/pkg/gocd"
 
 	"github.com/pkg/errors"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -35,30 +38,40 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/statemetrics"
 
-	"github.com/crossplane/provider-template/apis/sample/v1alpha1"
-	apisv1alpha1 "github.com/crossplane/provider-template/apis/v1alpha1"
-	"github.com/crossplane/provider-template/internal/features"
+	"github.com/marquesgui/provider-gocd/apis/config/v1alpha1"
+	apisv1alpha1 "github.com/marquesgui/provider-gocd/apis/v1alpha1"
+	"github.com/marquesgui/provider-gocd/internal/features"
 )
 
 const (
-	errNotMyType    = "managed resource is not a MyType custom resource"
-	errTrackPCUsage = "cannot track ProviderConfig usage"
-	errGetPC        = "cannot get ProviderConfig"
-	errGetCreds     = "cannot get credentials"
-
-	errNewClient = "cannot create new Service"
+	errNotPipelineConfig = "managed resource is not a PipelineConfig custom resource"
+	errTrackPCUsage      = "cannot track ProviderConfig usage"
+	errGetPC             = "cannot get ProviderConfig"
+	errGetCreds          = "cannot get credentials"
+	errNewClient         = "cannot create new Service"
 )
 
-// A NoOpService does nothing.
-type NoOpService struct{}
+var newService = func(creds []byte) (any, error) {
+	cfg, err := apisv1alpha1.ParseGocdProviderConfig(creds)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot parse gocd provider config")
+	}
+	c, err := gocd.New(gocd.Config{
+		BaseURL:  cfg.BaseURL,
+		Username: cfg.Username,
+		Password: cfg.Password,
+		Token:    cfg.Token,
+		Insecure: cfg.Insecure,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot create new GoCD client")
+	}
+	return c.PipelineConfigs(), nil
+}
 
-var (
-	newNoOpService = func(_ []byte) (interface{}, error) { return &NoOpService{}, nil }
-)
-
-// Setup adds a controller that reconciles MyType managed resources.
+// Setup adds a controller that reconciles PipelineConfig managed resources.
 func Setup(mgr ctrl.Manager, o controller.Options) error {
-	name := managed.ControllerName(v1alpha1.MyTypeGroupKind)
+	name := managed.ControllerName(v1alpha1.PipelineConfigGroupKind)
 
 	cps := []managed.ConnectionPublisher{managed.NewAPISecretPublisher(mgr.GetClient(), mgr.GetScheme())}
 	if o.Features.Enabled(features.EnableAlphaExternalSecretStores) {
@@ -69,7 +82,8 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		managed.WithExternalConnecter(&connector{
 			kube:         mgr.GetClient(),
 			usage:        resource.NewProviderConfigUsageTracker(mgr.GetClient(), &apisv1alpha1.ProviderConfigUsage{}),
-			newServiceFn: newNoOpService}),
+			newServiceFn: newService,
+		}),
 		managed.WithLogger(o.Logger.WithValues("controller", name)),
 		managed.WithPollInterval(o.PollInterval),
 		managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
@@ -87,20 +101,20 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 
 	if o.MetricOptions != nil && o.MetricOptions.MRStateMetrics != nil {
 		stateMetricsRecorder := statemetrics.NewMRStateRecorder(
-			mgr.GetClient(), o.Logger, o.MetricOptions.MRStateMetrics, &v1alpha1.MyTypeList{}, o.MetricOptions.PollStateMetricInterval,
+			mgr.GetClient(), o.Logger, o.MetricOptions.MRStateMetrics, &v1alpha1.PipelineConfigList{}, o.MetricOptions.PollStateMetricInterval,
 		)
 		if err := mgr.Add(stateMetricsRecorder); err != nil {
-			return errors.Wrap(err, "cannot register MR state metrics recorder for kind v1alpha1.MyTypeList")
+			return errors.Wrap(err, "cannot register MR state metrics recorder for kind v1alpha1.PipelineConfigList")
 		}
 	}
 
-	r := managed.NewReconciler(mgr, resource.ManagedKind(v1alpha1.MyTypeGroupVersionKind), opts...)
+	r := managed.NewReconciler(mgr, resource.ManagedKind(v1alpha1.PipelineConfigGroupVersionKind), opts...)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		WithOptions(o.ForControllerRuntime()).
 		WithEventFilter(resource.DesiredStateChanged()).
-		For(&v1alpha1.MyType{}).
+		For(&v1alpha1.PipelineConfig{}).
 		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
 }
 
@@ -109,7 +123,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 type connector struct {
 	kube         client.Client
 	usage        resource.Tracker
-	newServiceFn func(creds []byte) (interface{}, error)
+	newServiceFn func(creds []byte) (any, error)
 }
 
 // Connect typically produces an ExternalClient by:
@@ -118,9 +132,9 @@ type connector struct {
 // 3. Getting the credentials specified by the ProviderConfig.
 // 4. Using the credentials to form a client.
 func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) {
-	cr, ok := mg.(*v1alpha1.MyType)
+	cr, ok := mg.(*v1alpha1.PipelineConfig)
 	if !ok {
-		return nil, errors.New(errNotMyType)
+		return nil, errors.New(errNotPipelineConfig)
 	}
 
 	if err := c.usage.Track(ctx, mg); err != nil {
@@ -143,7 +157,11 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		return nil, errors.Wrap(err, errNewClient)
 	}
 
-	return &external{service: svc}, nil
+	s, ok := svc.(gocd.PipelineConfigsService)
+	if !ok {
+		return nil, errors.New("returned service does not implement gocd.PipelineConfigsService")
+	}
+	return &external{service: s}, nil
 }
 
 // An ExternalClient observes, then either creates, updates, or deletes an
@@ -151,76 +169,130 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 type external struct {
 	// A 'client' used to connect to the external resource API. In practice this
 	// would be something like an AWS SDK client.
-	service interface{}
+	service gocd.PipelineConfigsService
 }
 
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
-	cr, ok := mg.(*v1alpha1.MyType)
+	pc, ok := mg.(*v1alpha1.PipelineConfig)
 	if !ok {
-		return managed.ExternalObservation{}, errors.New(errNotMyType)
+		return managed.ExternalObservation{}, errors.New(errNotPipelineConfig)
 	}
 
-	// These fmt statements should be removed in the real implementation.
-	fmt.Printf("Observing: %+v", cr)
+	got, etag, err := c.service.Get(ctx, pc.Spec.ForProvider.Name)
+	if err != nil {
+		return managed.ExternalObservation{}, errors.Wrap(err, "cannot get pipeline config")
+	}
+	if got == nil {
+		return managed.ExternalObservation{ResourceExists: false}, nil
+	}
+
+	err = updateStatus(pc, got)
+	if err != nil {
+		return managed.ExternalObservation{}, errors.Wrap(err, "cannot update status")
+	}
+
+	keepETag(pc, etag)
+	upToDate := isUpToDate(pc.Spec.ForProvider, got)
+
+	if upToDate {
+		pc.SetConditions(xpv1.Available())
+	} else {
+		pc.SetConditions(xpv1.Unavailable())
+	}
 
 	return managed.ExternalObservation{
-		// Return false when the external resource does not exist. This lets
-		// the managed resource reconciler know that it needs to call Create to
-		// (re)create the resource, or that it has successfully been deleted.
-		ResourceExists: true,
-
-		// Return false when the external resource exists, but it not up to date
-		// with the desired managed resource state. This lets the managed
-		// resource reconciler know that it needs to call Update.
-		ResourceUpToDate: true,
-
-		// Return any details that may be required to connect to the external
-		// resource. These will be stored as the connection secret.
+		ResourceExists:    true,
+		ResourceUpToDate:  upToDate,
 		ConnectionDetails: managed.ConnectionDetails{},
 	}, nil
 }
 
 func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.ExternalCreation, error) {
-	cr, ok := mg.(*v1alpha1.MyType)
+	cr, ok := mg.(*v1alpha1.PipelineConfig)
 	if !ok {
-		return managed.ExternalCreation{}, errors.New(errNotMyType)
+		return managed.ExternalCreation{}, errors.New(errNotPipelineConfig)
 	}
 
-	fmt.Printf("Creating: %+v", cr)
+	requestBody := mapAPIToDtoPipelineConfig(cr.Spec.ForProvider)
+	out, etag, err := c.service.Create(ctx, requestBody)
+	if err != nil {
+		return managed.ExternalCreation{}, errors.Wrap(err, "cannot create pipeline config")
+	}
+	if out != nil {
+		err = updateStatus(cr, out)
+		if err != nil {
+			return managed.ExternalCreation{}, errors.Wrap(err, "cannot update status")
+		}
+	}
+	keepETag(cr, etag)
 
 	return managed.ExternalCreation{
-		// Optionally return any details that may be required to connect to the
-		// external resource. These will be stored as the connection secret.
 		ConnectionDetails: managed.ConnectionDetails{},
 	}, nil
 }
 
 func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.ExternalUpdate, error) {
-	cr, ok := mg.(*v1alpha1.MyType)
+	cr, ok := mg.(*v1alpha1.PipelineConfig)
 	if !ok {
-		return managed.ExternalUpdate{}, errors.New(errNotMyType)
+		return managed.ExternalUpdate{}, errors.New(errNotPipelineConfig)
 	}
 
-	fmt.Printf("Updating: %+v", cr)
-
+	requestBody := mapAPIToDtoPipelineConfig(cr.Spec.ForProvider)
+	etag := ""
+	if cr.Annotations != nil {
+		etag = cr.Annotations["gocd.crossplane.io/etag"]
+	}
+	out, etag, err := c.service.Update(ctx, etag, requestBody)
+	if err != nil {
+		return managed.ExternalUpdate{}, errors.Wrap(err, "cannot update pipeline config")
+	}
+	keepETag(cr, etag)
+	err = updateStatus(cr, out)
+	if err != nil {
+		return managed.ExternalUpdate{}, errors.Wrap(err, "cannot update status")
+	}
 	return managed.ExternalUpdate{
-		// Optionally return any details that may be required to connect to the
-		// external resource. These will be stored as the connection secret.
 		ConnectionDetails: managed.ConnectionDetails{},
 	}, nil
 }
 
 func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.ExternalDelete, error) {
-	cr, ok := mg.(*v1alpha1.MyType)
+	cr, ok := mg.(*v1alpha1.PipelineConfig)
 	if !ok {
-		return managed.ExternalDelete{}, errors.New(errNotMyType)
+		return managed.ExternalDelete{}, errors.New(errNotPipelineConfig)
 	}
 
-	fmt.Printf("Deleting: %+v", cr)
-
+	err := c.service.Delete(ctx, cr.Spec.ForProvider.Name)
+	if err != nil {
+		return managed.ExternalDelete{}, errors.Wrap(err, "cannot delete pipeline config")
+	}
 	return managed.ExternalDelete{}, nil
 }
 
-func (c *external) Disconnect(ctx context.Context) error {
+func (c *external) Disconnect(context.Context) error {
 	return nil
+}
+
+func keepETag(pc *v1alpha1.PipelineConfig, etag string) {
+	if pc.Annotations == nil {
+		pc.Annotations = map[string]string{}
+	}
+	if etag != "" {
+		pc.Annotations["gocd.crossplane.io/etag"] = etag
+	}
+}
+
+func updateStatus(pc *v1alpha1.PipelineConfig, got *gocd.PipelineConfig) error {
+	b, err := json.Marshal(got)
+	if err != nil {
+		return errors.Wrap(err, "error marshalling pipeline config parameters")
+	}
+	pc.Status.AtProvider = &runtime.RawExtension{Raw: b}
+	return nil
+}
+
+func isUpToDate(pc v1alpha1.PipelineConfigForProvider, got *gocd.PipelineConfig) bool {
+	desired := mapAPIToDtoPipelineConfig(pc)
+	isEqual := desired.Equal(got)
+	return isEqual
 }

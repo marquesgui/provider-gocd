@@ -1,0 +1,2236 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.16.5
+  name: pipelineconfigs.config.gocd.crossplane.io
+spec:
+  group: config.gocd.crossplane.io
+  names:
+    categories:
+    - crossplane
+    - managed
+    - gocd
+    kind: PipelineConfig
+    listKind: PipelineConfigList
+    plural: pipelineconfigs
+    singular: pipelineconfig
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.conditions[?(@.type=='Ready')].status
+      name: READY
+      type: string
+    - jsonPath: .status.conditions[?(@.type=='Synced')].status
+      name: SYNCED
+      type: string
+    - jsonPath: .metadata.annotations.crossplane\.io/external-name
+      name: EXTERNAL-NAME
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: AGE
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: nolint:staticcheck
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: A PipelineConfigSpec defines the desired state of a PipelineConfig.
+            properties:
+              deletionPolicy:
+                default: Delete
+                description: |-
+                  DeletionPolicy specifies what will happen to the underlying external
+                  when this managed resource is deleted - either "Delete" or "Orphan" the
+                  external resource.
+                  This field is planned to be deprecated in favor of the ManagementPolicies
+                  field in a future release. Currently, both could be set independently and
+                  non-default values would be honored if the feature flag is enabled.
+                  See the design doc for more information: https://github.com/crossplane/crossplane/blob/499895a25d1a1a0ba1604944ef98ac7a1a71f197/design/design-doc-observe-only-resources.md?plain=1#L223
+                enum:
+                - Orphan
+                - Delete
+                type: string
+              forProvider:
+                description: PipelineConfigForProvider are the configurable fields
+                  of a PipelineConfig.
+                properties:
+                  environmentVariables:
+                    items:
+                      properties:
+                        encryptedValue:
+                          type: string
+                        name:
+                          type: string
+                        secure:
+                          type: boolean
+                        value:
+                          type: string
+                      required:
+                      - name
+                      type: object
+                    maxItems: 50
+                    type: array
+                  group:
+                    type: string
+                  labelTemplate:
+                    type: string
+                  lockBehavior:
+                    default: none
+                    type: string
+                  materials:
+                    items:
+                      description: |-
+                        // nolint:staticcheck
+                        // +kubebuilder:validation:XValidation:rule="self.type == 'git' ? has(self.gitAttributes) : !has(self.gitAttributes)",message="gitAttributes must be set only when type is 'git'"
+                        // +kubebuilder:validation:XValidation:rule="self.type == 'hg' ? has(self.hgAttributes) : !has(self.hgAttributes)",message="hgAttributes must be set only when type is 'hg'"
+                        // +kubebuilder:validation:XValidation:rule="self.type == 'svn' ? has(self.svnAttributes) : !has(self.svnAttributes)",message="svnAttributes must be set only when type is 'svn'"
+                        // +kubebuilder:validation:XValidation:rule="self.type == 'p4' ? has(self.p4Attributes) : !has(self.p4Attributes)",message="p4Attributes must be set only when type is 'p4'"
+                        // +kubebuilder:validation:XValidation:rule="self.type == 'tfs' ? has(self.tfsAttributes) : !has(self.tfsAttributes)",message="tfsAttributes must be set only when type is 'tfs'"
+                        // +kubebuilder:validation:XValidation:rule="self.type == 'dependency' ? has(self.dependencyAttributes) : !has(self.dependencyAttributes)",message="dependencyAttributes must be set only when type is 'dependency'"
+                        // +kubebuilder:validation:XValidation:rule="self.type == 'package' ? has(self.packageAttributes) : !has(self.packageAttributes)",message="packageAttributes must be set only when type is 'package'"
+                        // +kubebuilder:validation:XValidation:rule="self.type == 'plugin' ? has(self.pluginAttributes) : !has(self.pluginAttributes)",message="pluginAttributes must be set only when type is 'plugin'"
+                      properties:
+                        dependencyAttributes:
+                          properties:
+                            autoUpdate:
+                              type: boolean
+                            ignoreForScheduling:
+                              type: boolean
+                            name:
+                              type: string
+                            pipeline:
+                              type: string
+                            stage:
+                              type: string
+                          required:
+                          - autoUpdate
+                          - ignoreForScheduling
+                          - name
+                          - pipeline
+                          - stage
+                          type: object
+                        gitAttributes:
+                          properties:
+                            autoUpdate:
+                              type: boolean
+                            branch:
+                              type: string
+                            destination:
+                              type: string
+                            filter:
+                              properties:
+                                ignore:
+                                  default: []
+                                  items:
+                                    type: string
+                                  maxItems: 50
+                                  type: array
+                                includes:
+                                  default: []
+                                  items:
+                                    type: string
+                                  maxItems: 50
+                                  type: array
+                              type: object
+                            invertFilter:
+                              type: boolean
+                            name:
+                              type: string
+                            password:
+                              type: string
+                            shallowClone:
+                              type: boolean
+                            submoduleFolder:
+                              type: string
+                            url:
+                              type: string
+                            username:
+                              type: string
+                          required:
+                          - branch
+                          - url
+                          type: object
+                        hgAttributes:
+                          properties:
+                            autoUpdate:
+                              type: boolean
+                            branch:
+                              type: string
+                            destination:
+                              type: string
+                            encryptedPassword:
+                              type: string
+                            filter:
+                              properties:
+                                ignore:
+                                  default: []
+                                  items:
+                                    type: string
+                                  maxItems: 50
+                                  type: array
+                                includes:
+                                  default: []
+                                  items:
+                                    type: string
+                                  maxItems: 50
+                                  type: array
+                              type: object
+                            invertFilter:
+                              type: boolean
+                            name:
+                              type: string
+                            password:
+                              type: string
+                            url:
+                              type: string
+                            username:
+                              type: string
+                          required:
+                          - branch
+                          - name
+                          - url
+                          type: object
+                        p4Attributes:
+                          properties:
+                            autoUpdate:
+                              type: boolean
+                            destination:
+                              type: string
+                            encryptedPassword:
+                              type: string
+                            filter:
+                              properties:
+                                ignore:
+                                  default: []
+                                  items:
+                                    type: string
+                                  maxItems: 50
+                                  type: array
+                                includes:
+                                  default: []
+                                  items:
+                                    type: string
+                                  maxItems: 50
+                                  type: array
+                              type: object
+                            invertFilter:
+                              type: boolean
+                            name:
+                              type: string
+                            password:
+                              type: string
+                            port:
+                              type: string
+                            useTickets:
+                              type: boolean
+                            username:
+                              type: string
+                            view:
+                              type: string
+                          required:
+                          - name
+                          - port
+                          type: object
+                        packageAttributes:
+                          properties:
+                            ref:
+                              type: string
+                          required:
+                          - ref
+                          type: object
+                        pluginAttributes:
+                          properties:
+                            destination:
+                              type: string
+                            filter:
+                              default: {}
+                              properties:
+                                ignore:
+                                  default: []
+                                  items:
+                                    type: string
+                                  maxItems: 50
+                                  type: array
+                                includes:
+                                  default: []
+                                  items:
+                                    type: string
+                                  maxItems: 50
+                                  type: array
+                              type: object
+                            invertFilter:
+                              type: boolean
+                            ref:
+                              type: string
+                          required:
+                          - destination
+                          - ref
+                          type: object
+                        svnAttributes:
+                          properties:
+                            autoUpdate:
+                              type: boolean
+                            checkExternals:
+                              type: boolean
+                            destination:
+                              type: string
+                            encryptedPassword:
+                              type: string
+                            filter:
+                              properties:
+                                ignore:
+                                  default: []
+                                  items:
+                                    type: string
+                                  maxItems: 50
+                                  type: array
+                                includes:
+                                  default: []
+                                  items:
+                                    type: string
+                                  maxItems: 50
+                                  type: array
+                              type: object
+                            invertFilter:
+                              type: boolean
+                            name:
+                              type: string
+                            password:
+                              type: string
+                            url:
+                              type: string
+                            username:
+                              type: string
+                          required:
+                          - name
+                          - url
+                          type: object
+                        tfsAttributes:
+                          properties:
+                            autoUpdate:
+                              type: boolean
+                            destination:
+                              type: string
+                            domain:
+                              type: string
+                            encryptedPassword:
+                              type: string
+                            filter:
+                              properties:
+                                ignore:
+                                  default: []
+                                  items:
+                                    type: string
+                                  maxItems: 50
+                                  type: array
+                                includes:
+                                  default: []
+                                  items:
+                                    type: string
+                                  maxItems: 50
+                                  type: array
+                              type: object
+                            invertFilter:
+                              type: boolean
+                            name:
+                              type: string
+                            password:
+                              type: string
+                            projectPath:
+                              type: string
+                            url:
+                              type: string
+                            username:
+                              type: string
+                          required:
+                          - autoUpdate
+                          - destination
+                          - domain
+                          - encryptedPassword
+                          - filter
+                          - invertFilter
+                          - name
+                          - password
+                          - projectPath
+                          - url
+                          - username
+                          type: object
+                        type:
+                          enum:
+                          - git
+                          - svn
+                          - hg
+                          - p4
+                          - tfs
+                          - dependency
+                          - package
+                          - plugin
+                          type: string
+                      required:
+                      - type
+                      type: object
+                    maxItems: 50
+                    minItems: 1
+                    type: array
+                  name:
+                    type: string
+                  origin:
+                    default:
+                      type: gocd
+                    description: |-
+                      // nolint:staticcheck
+                      // +kubebuilder:validation:XValidation:rule="self.type == 'config_repo' ? has(self.id) : !has(self.id)",message="id must be set only when the type is 'config_repo'"
+                    properties:
+                      id:
+                        type: string
+                      type:
+                        enum:
+                        - gocd
+                        - config_repo
+                        type: string
+                    required:
+                    - type
+                    type: object
+                  parameters:
+                    items:
+                      properties:
+                        name:
+                          type: string
+                        value:
+                          type: string
+                      required:
+                      - name
+                      - value
+                      type: object
+                    maxItems: 50
+                    type: array
+                  stages:
+                    items:
+                      properties:
+                        approval:
+                          properties:
+                            allowOnlyOnSuccess:
+                              type: boolean
+                            authorization:
+                              properties:
+                                roles:
+                                  items:
+                                    type: string
+                                  type: array
+                                users:
+                                  items:
+                                    type: string
+                                  type: array
+                              required:
+                              - roles
+                              - users
+                              type: object
+                            type:
+                              enum:
+                              - manual
+                              - success
+                              type: string
+                          required:
+                          - authorization
+                          - type
+                          type: object
+                        cleanWorkingDir:
+                          type: boolean
+                        environmentVariables:
+                          items:
+                            properties:
+                              encryptedValue:
+                                type: string
+                              name:
+                                type: string
+                              secure:
+                                type: boolean
+                              value:
+                                type: string
+                            required:
+                            - name
+                            type: object
+                          maxItems: 50
+                          type: array
+                        fetchMaterials:
+                          type: boolean
+                        jobs:
+                          items:
+                            properties:
+                              artifacts:
+                                items:
+                                  description: nolint:staticcheck
+                                  properties:
+                                    configuration:
+                                      items:
+                                        properties:
+                                          key:
+                                            type: string
+                                          value:
+                                            type: string
+                                        required:
+                                        - key
+                                        - value
+                                        type: object
+                                      maxItems: 100
+                                      type: array
+                                    destination:
+                                      type: string
+                                    id:
+                                      type: string
+                                    source:
+                                      type: string
+                                    storeId:
+                                      type: string
+                                    type:
+                                      enum:
+                                      - test
+                                      - build
+                                      - external
+                                      type: string
+                                  required:
+                                  - type
+                                  type: object
+                                  x-kubernetes-validations:
+                                  - message: source must be set only when type is
+                                      'test' or 'build'
+                                    rule: '(self.type in [''test'', ''build''])? has(self.source)
+                                      && self.source != "" : true'
+                                  - message: destination must be set only when type
+                                      is 'test' or 'build'
+                                    rule: '(self.type in [''test'', ''build''])? has(self.destination)
+                                      && self.destination != "" : true'
+                                  - message: id must be set when type is external
+                                    rule: '(self.type == ''external'')? has(self.id)
+                                      && self.id != "" : true'
+                                  - message: storeId must be set when type is external
+                                    rule: '(self.type == ''external'')? has(self.storeId)
+                                      && self.storeId != "" : true'
+                                type: array
+                              elasticProfileID:
+                                type: string
+                              environmentVariables:
+                                items:
+                                  properties:
+                                    encryptedValue:
+                                      type: string
+                                    name:
+                                      type: string
+                                    secure:
+                                      type: boolean
+                                    value:
+                                      type: string
+                                  required:
+                                  - name
+                                  type: object
+                                type: array
+                              name:
+                                type: string
+                              resources:
+                                default: []
+                                items:
+                                  type: string
+                                maxItems: 10
+                                type: array
+                              runInstanceCount:
+                                anyOf:
+                                - type: integer
+                                - type: string
+                                default: ""
+                                x-kubernetes-int-or-string: true
+                              tabs:
+                                items:
+                                  properties:
+                                    name:
+                                      type: string
+                                    path:
+                                      type: string
+                                  required:
+                                  - name
+                                  - path
+                                  type: object
+                                type: array
+                              tasks:
+                                items:
+                                  description: nolint:staticcheck
+                                  properties:
+                                    antAttributes:
+                                      properties:
+                                        buildFile:
+                                          type: string
+                                        onCancel:
+                                          description: nolint:staticcheck
+                                          properties:
+                                            antAttributes:
+                                              properties:
+                                                buildFile:
+                                                  type: string
+                                                runIf:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                target:
+                                                  type: string
+                                                workingDirectory:
+                                                  type: string
+                                              required:
+                                              - buildFile
+                                              - runIf
+                                              - target
+                                              - workingDirectory
+                                              type: object
+                                            execAttributes:
+                                              properties:
+                                                arguments:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                command:
+                                                  type: string
+                                                runIf:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                workingDirectory:
+                                                  type: string
+                                              required:
+                                              - command
+                                              - runIf
+                                              type: object
+                                            fetchAttributes:
+                                              properties:
+                                                artifactId:
+                                                  type: string
+                                                artifactOrigin:
+                                                  enum:
+                                                  - gocd
+                                                  - external
+                                                  type: string
+                                                configuration:
+                                                  items:
+                                                    properties:
+                                                      key:
+                                                        type: string
+                                                      value:
+                                                        type: string
+                                                    required:
+                                                    - key
+                                                    - value
+                                                    type: object
+                                                  type: array
+                                                destination:
+                                                  type: string
+                                                isSourceAFile:
+                                                  type: boolean
+                                                job:
+                                                  type: string
+                                                pipeline:
+                                                  type: string
+                                                runIf:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                source:
+                                                  type: string
+                                                stage:
+                                                  type: string
+                                              required:
+                                              - artifactId
+                                              - artifactOrigin
+                                              - destination
+                                              - isSourceAFile
+                                              - job
+                                              - pipeline
+                                              - runIf
+                                              - source
+                                              - stage
+                                              type: object
+                                            nantAttributes:
+                                              properties:
+                                                buildFile:
+                                                  type: string
+                                                nantPath:
+                                                  type: string
+                                                runIf:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                target:
+                                                  type: string
+                                                workingDirectory:
+                                                  type: string
+                                              required:
+                                              - buildFile
+                                              - nantPath
+                                              - runIf
+                                              - target
+                                              - workingDirectory
+                                              type: object
+                                            pluggableAttributes:
+                                              properties:
+                                                configuration:
+                                                  items:
+                                                    properties:
+                                                      key:
+                                                        type: string
+                                                      value:
+                                                        type: string
+                                                    required:
+                                                    - key
+                                                    - value
+                                                    type: object
+                                                  type: array
+                                                pluginConfiguration:
+                                                  properties:
+                                                    id:
+                                                      type: string
+                                                    version:
+                                                      type: string
+                                                  required:
+                                                  - id
+                                                  - version
+                                                  type: object
+                                                runIf:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                              required:
+                                              - pluginConfiguration
+                                              - runIf
+                                              type: object
+                                            rakeAttributes:
+                                              properties:
+                                                buildFile:
+                                                  type: string
+                                                runIf:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                target:
+                                                  type: string
+                                                workingDirectory:
+                                                  type: string
+                                              required:
+                                              - buildFile
+                                              - runIf
+                                              - target
+                                              - workingDirectory
+                                              type: object
+                                            type:
+                                              enum:
+                                              - exec
+                                              - rake
+                                              - fetch
+                                              - ant
+                                              - nant
+                                              - pluggable_task
+                                              type: string
+                                          required:
+                                          - type
+                                          type: object
+                                          x-kubernetes-validations:
+                                          - message: fetchAttributes must be set only
+                                              when type is 'fetch'
+                                            rule: 'self.type == ''fetch'' ? has(self.fetchAttributes)
+                                              : !has(self.fetchAttributes)'
+                                          - message: execAttributes must be set only
+                                              when type is 'exec'
+                                            rule: 'self.type == ''exec'' ? has(self.execAttributes)
+                                              : !has(self.execAttributes)'
+                                          - message: antAttributes must be set only
+                                              when type is 'ant'
+                                            rule: 'self.type == ''ant'' ? has(self.antAttributes)
+                                              : !has(self.antAttributes)'
+                                          - message: nantAttributes must be set only
+                                              when type is 'nant'
+                                            rule: 'self.type == ''nant'' ? has(self.nantAttributes)
+                                              : !has(self.nantAttributes)'
+                                          - message: rakeAttributes must be set only
+                                              when type is 'rake'
+                                            rule: 'self.type == ''rake'' ? has(self.rakeAttributes)
+                                              : !has(self.rakeAttributes)'
+                                          - message: pluggableAttributes must be set
+                                              only when type is 'pluggable_task'
+                                            rule: 'self.type == ''pluggable_task''
+                                              ? has(self.pluggableAttributes) : !has(self.pluggableAttributes)'
+                                        runIf:
+                                          items:
+                                            type: string
+                                          type: array
+                                        target:
+                                          type: string
+                                        workingDirectory:
+                                          type: string
+                                      required:
+                                      - buildFile
+                                      - runIf
+                                      - target
+                                      - workingDirectory
+                                      type: object
+                                    execAttributes:
+                                      properties:
+                                        arguments:
+                                          items:
+                                            type: string
+                                          type: array
+                                        command:
+                                          type: string
+                                        onCancel:
+                                          description: nolint:staticcheck
+                                          properties:
+                                            antAttributes:
+                                              properties:
+                                                buildFile:
+                                                  type: string
+                                                runIf:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                target:
+                                                  type: string
+                                                workingDirectory:
+                                                  type: string
+                                              required:
+                                              - buildFile
+                                              - runIf
+                                              - target
+                                              - workingDirectory
+                                              type: object
+                                            execAttributes:
+                                              properties:
+                                                arguments:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                command:
+                                                  type: string
+                                                runIf:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                workingDirectory:
+                                                  type: string
+                                              required:
+                                              - command
+                                              - runIf
+                                              type: object
+                                            fetchAttributes:
+                                              properties:
+                                                artifactId:
+                                                  type: string
+                                                artifactOrigin:
+                                                  enum:
+                                                  - gocd
+                                                  - external
+                                                  type: string
+                                                configuration:
+                                                  items:
+                                                    properties:
+                                                      key:
+                                                        type: string
+                                                      value:
+                                                        type: string
+                                                    required:
+                                                    - key
+                                                    - value
+                                                    type: object
+                                                  type: array
+                                                destination:
+                                                  type: string
+                                                isSourceAFile:
+                                                  type: boolean
+                                                job:
+                                                  type: string
+                                                pipeline:
+                                                  type: string
+                                                runIf:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                source:
+                                                  type: string
+                                                stage:
+                                                  type: string
+                                              required:
+                                              - artifactId
+                                              - artifactOrigin
+                                              - destination
+                                              - isSourceAFile
+                                              - job
+                                              - pipeline
+                                              - runIf
+                                              - source
+                                              - stage
+                                              type: object
+                                            nantAttributes:
+                                              properties:
+                                                buildFile:
+                                                  type: string
+                                                nantPath:
+                                                  type: string
+                                                runIf:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                target:
+                                                  type: string
+                                                workingDirectory:
+                                                  type: string
+                                              required:
+                                              - buildFile
+                                              - nantPath
+                                              - runIf
+                                              - target
+                                              - workingDirectory
+                                              type: object
+                                            pluggableAttributes:
+                                              properties:
+                                                configuration:
+                                                  items:
+                                                    properties:
+                                                      key:
+                                                        type: string
+                                                      value:
+                                                        type: string
+                                                    required:
+                                                    - key
+                                                    - value
+                                                    type: object
+                                                  type: array
+                                                pluginConfiguration:
+                                                  properties:
+                                                    id:
+                                                      type: string
+                                                    version:
+                                                      type: string
+                                                  required:
+                                                  - id
+                                                  - version
+                                                  type: object
+                                                runIf:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                              required:
+                                              - pluginConfiguration
+                                              - runIf
+                                              type: object
+                                            rakeAttributes:
+                                              properties:
+                                                buildFile:
+                                                  type: string
+                                                runIf:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                target:
+                                                  type: string
+                                                workingDirectory:
+                                                  type: string
+                                              required:
+                                              - buildFile
+                                              - runIf
+                                              - target
+                                              - workingDirectory
+                                              type: object
+                                            type:
+                                              enum:
+                                              - exec
+                                              - rake
+                                              - fetch
+                                              - ant
+                                              - nant
+                                              - pluggable_task
+                                              type: string
+                                          required:
+                                          - type
+                                          type: object
+                                          x-kubernetes-validations:
+                                          - message: fetchAttributes must be set only
+                                              when type is 'fetch'
+                                            rule: 'self.type == ''fetch'' ? has(self.fetchAttributes)
+                                              : !has(self.fetchAttributes)'
+                                          - message: execAttributes must be set only
+                                              when type is 'exec'
+                                            rule: 'self.type == ''exec'' ? has(self.execAttributes)
+                                              : !has(self.execAttributes)'
+                                          - message: antAttributes must be set only
+                                              when type is 'ant'
+                                            rule: 'self.type == ''ant'' ? has(self.antAttributes)
+                                              : !has(self.antAttributes)'
+                                          - message: nantAttributes must be set only
+                                              when type is 'nant'
+                                            rule: 'self.type == ''nant'' ? has(self.nantAttributes)
+                                              : !has(self.nantAttributes)'
+                                          - message: rakeAttributes must be set only
+                                              when type is 'rake'
+                                            rule: 'self.type == ''rake'' ? has(self.rakeAttributes)
+                                              : !has(self.rakeAttributes)'
+                                          - message: pluggableAttributes must be set
+                                              only when type is 'pluggable_task'
+                                            rule: 'self.type == ''pluggable_task''
+                                              ? has(self.pluggableAttributes) : !has(self.pluggableAttributes)'
+                                        runIf:
+                                          items:
+                                            type: string
+                                          type: array
+                                        workingDirectory:
+                                          type: string
+                                      required:
+                                      - command
+                                      - runIf
+                                      type: object
+                                    fetchAttributes:
+                                      properties:
+                                        artifactId:
+                                          type: string
+                                        artifactOrigin:
+                                          enum:
+                                          - gocd
+                                          - external
+                                          type: string
+                                        configuration:
+                                          items:
+                                            properties:
+                                              key:
+                                                type: string
+                                              value:
+                                                type: string
+                                            required:
+                                            - key
+                                            - value
+                                            type: object
+                                          type: array
+                                        destination:
+                                          type: string
+                                        isSourceAFile:
+                                          type: boolean
+                                        job:
+                                          type: string
+                                        onCancel:
+                                          description: nolint:staticcheck
+                                          properties:
+                                            antAttributes:
+                                              properties:
+                                                buildFile:
+                                                  type: string
+                                                runIf:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                target:
+                                                  type: string
+                                                workingDirectory:
+                                                  type: string
+                                              required:
+                                              - buildFile
+                                              - runIf
+                                              - target
+                                              - workingDirectory
+                                              type: object
+                                            execAttributes:
+                                              properties:
+                                                arguments:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                command:
+                                                  type: string
+                                                runIf:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                workingDirectory:
+                                                  type: string
+                                              required:
+                                              - command
+                                              - runIf
+                                              type: object
+                                            fetchAttributes:
+                                              properties:
+                                                artifactId:
+                                                  type: string
+                                                artifactOrigin:
+                                                  enum:
+                                                  - gocd
+                                                  - external
+                                                  type: string
+                                                configuration:
+                                                  items:
+                                                    properties:
+                                                      key:
+                                                        type: string
+                                                      value:
+                                                        type: string
+                                                    required:
+                                                    - key
+                                                    - value
+                                                    type: object
+                                                  type: array
+                                                destination:
+                                                  type: string
+                                                isSourceAFile:
+                                                  type: boolean
+                                                job:
+                                                  type: string
+                                                pipeline:
+                                                  type: string
+                                                runIf:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                source:
+                                                  type: string
+                                                stage:
+                                                  type: string
+                                              required:
+                                              - artifactId
+                                              - artifactOrigin
+                                              - destination
+                                              - isSourceAFile
+                                              - job
+                                              - pipeline
+                                              - runIf
+                                              - source
+                                              - stage
+                                              type: object
+                                            nantAttributes:
+                                              properties:
+                                                buildFile:
+                                                  type: string
+                                                nantPath:
+                                                  type: string
+                                                runIf:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                target:
+                                                  type: string
+                                                workingDirectory:
+                                                  type: string
+                                              required:
+                                              - buildFile
+                                              - nantPath
+                                              - runIf
+                                              - target
+                                              - workingDirectory
+                                              type: object
+                                            pluggableAttributes:
+                                              properties:
+                                                configuration:
+                                                  items:
+                                                    properties:
+                                                      key:
+                                                        type: string
+                                                      value:
+                                                        type: string
+                                                    required:
+                                                    - key
+                                                    - value
+                                                    type: object
+                                                  type: array
+                                                pluginConfiguration:
+                                                  properties:
+                                                    id:
+                                                      type: string
+                                                    version:
+                                                      type: string
+                                                  required:
+                                                  - id
+                                                  - version
+                                                  type: object
+                                                runIf:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                              required:
+                                              - pluginConfiguration
+                                              - runIf
+                                              type: object
+                                            rakeAttributes:
+                                              properties:
+                                                buildFile:
+                                                  type: string
+                                                runIf:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                target:
+                                                  type: string
+                                                workingDirectory:
+                                                  type: string
+                                              required:
+                                              - buildFile
+                                              - runIf
+                                              - target
+                                              - workingDirectory
+                                              type: object
+                                            type:
+                                              enum:
+                                              - exec
+                                              - rake
+                                              - fetch
+                                              - ant
+                                              - nant
+                                              - pluggable_task
+                                              type: string
+                                          required:
+                                          - type
+                                          type: object
+                                          x-kubernetes-validations:
+                                          - message: fetchAttributes must be set only
+                                              when type is 'fetch'
+                                            rule: 'self.type == ''fetch'' ? has(self.fetchAttributes)
+                                              : !has(self.fetchAttributes)'
+                                          - message: execAttributes must be set only
+                                              when type is 'exec'
+                                            rule: 'self.type == ''exec'' ? has(self.execAttributes)
+                                              : !has(self.execAttributes)'
+                                          - message: antAttributes must be set only
+                                              when type is 'ant'
+                                            rule: 'self.type == ''ant'' ? has(self.antAttributes)
+                                              : !has(self.antAttributes)'
+                                          - message: nantAttributes must be set only
+                                              when type is 'nant'
+                                            rule: 'self.type == ''nant'' ? has(self.nantAttributes)
+                                              : !has(self.nantAttributes)'
+                                          - message: rakeAttributes must be set only
+                                              when type is 'rake'
+                                            rule: 'self.type == ''rake'' ? has(self.rakeAttributes)
+                                              : !has(self.rakeAttributes)'
+                                          - message: pluggableAttributes must be set
+                                              only when type is 'pluggable_task'
+                                            rule: 'self.type == ''pluggable_task''
+                                              ? has(self.pluggableAttributes) : !has(self.pluggableAttributes)'
+                                        pipeline:
+                                          type: string
+                                        runIf:
+                                          items:
+                                            type: string
+                                          type: array
+                                        source:
+                                          type: string
+                                        stage:
+                                          type: string
+                                      required:
+                                      - artifactId
+                                      - artifactOrigin
+                                      - destination
+                                      - isSourceAFile
+                                      - job
+                                      - pipeline
+                                      - runIf
+                                      - source
+                                      - stage
+                                      type: object
+                                    nantAttributes:
+                                      properties:
+                                        buildFile:
+                                          type: string
+                                        nantPath:
+                                          type: string
+                                        onCancel:
+                                          description: nolint:staticcheck
+                                          properties:
+                                            antAttributes:
+                                              properties:
+                                                buildFile:
+                                                  type: string
+                                                runIf:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                target:
+                                                  type: string
+                                                workingDirectory:
+                                                  type: string
+                                              required:
+                                              - buildFile
+                                              - runIf
+                                              - target
+                                              - workingDirectory
+                                              type: object
+                                            execAttributes:
+                                              properties:
+                                                arguments:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                command:
+                                                  type: string
+                                                runIf:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                workingDirectory:
+                                                  type: string
+                                              required:
+                                              - command
+                                              - runIf
+                                              type: object
+                                            fetchAttributes:
+                                              properties:
+                                                artifactId:
+                                                  type: string
+                                                artifactOrigin:
+                                                  enum:
+                                                  - gocd
+                                                  - external
+                                                  type: string
+                                                configuration:
+                                                  items:
+                                                    properties:
+                                                      key:
+                                                        type: string
+                                                      value:
+                                                        type: string
+                                                    required:
+                                                    - key
+                                                    - value
+                                                    type: object
+                                                  type: array
+                                                destination:
+                                                  type: string
+                                                isSourceAFile:
+                                                  type: boolean
+                                                job:
+                                                  type: string
+                                                pipeline:
+                                                  type: string
+                                                runIf:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                source:
+                                                  type: string
+                                                stage:
+                                                  type: string
+                                              required:
+                                              - artifactId
+                                              - artifactOrigin
+                                              - destination
+                                              - isSourceAFile
+                                              - job
+                                              - pipeline
+                                              - runIf
+                                              - source
+                                              - stage
+                                              type: object
+                                            nantAttributes:
+                                              properties:
+                                                buildFile:
+                                                  type: string
+                                                nantPath:
+                                                  type: string
+                                                runIf:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                target:
+                                                  type: string
+                                                workingDirectory:
+                                                  type: string
+                                              required:
+                                              - buildFile
+                                              - nantPath
+                                              - runIf
+                                              - target
+                                              - workingDirectory
+                                              type: object
+                                            pluggableAttributes:
+                                              properties:
+                                                configuration:
+                                                  items:
+                                                    properties:
+                                                      key:
+                                                        type: string
+                                                      value:
+                                                        type: string
+                                                    required:
+                                                    - key
+                                                    - value
+                                                    type: object
+                                                  type: array
+                                                pluginConfiguration:
+                                                  properties:
+                                                    id:
+                                                      type: string
+                                                    version:
+                                                      type: string
+                                                  required:
+                                                  - id
+                                                  - version
+                                                  type: object
+                                                runIf:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                              required:
+                                              - pluginConfiguration
+                                              - runIf
+                                              type: object
+                                            rakeAttributes:
+                                              properties:
+                                                buildFile:
+                                                  type: string
+                                                runIf:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                target:
+                                                  type: string
+                                                workingDirectory:
+                                                  type: string
+                                              required:
+                                              - buildFile
+                                              - runIf
+                                              - target
+                                              - workingDirectory
+                                              type: object
+                                            type:
+                                              enum:
+                                              - exec
+                                              - rake
+                                              - fetch
+                                              - ant
+                                              - nant
+                                              - pluggable_task
+                                              type: string
+                                          required:
+                                          - type
+                                          type: object
+                                          x-kubernetes-validations:
+                                          - message: fetchAttributes must be set only
+                                              when type is 'fetch'
+                                            rule: 'self.type == ''fetch'' ? has(self.fetchAttributes)
+                                              : !has(self.fetchAttributes)'
+                                          - message: execAttributes must be set only
+                                              when type is 'exec'
+                                            rule: 'self.type == ''exec'' ? has(self.execAttributes)
+                                              : !has(self.execAttributes)'
+                                          - message: antAttributes must be set only
+                                              when type is 'ant'
+                                            rule: 'self.type == ''ant'' ? has(self.antAttributes)
+                                              : !has(self.antAttributes)'
+                                          - message: nantAttributes must be set only
+                                              when type is 'nant'
+                                            rule: 'self.type == ''nant'' ? has(self.nantAttributes)
+                                              : !has(self.nantAttributes)'
+                                          - message: rakeAttributes must be set only
+                                              when type is 'rake'
+                                            rule: 'self.type == ''rake'' ? has(self.rakeAttributes)
+                                              : !has(self.rakeAttributes)'
+                                          - message: pluggableAttributes must be set
+                                              only when type is 'pluggable_task'
+                                            rule: 'self.type == ''pluggable_task''
+                                              ? has(self.pluggableAttributes) : !has(self.pluggableAttributes)'
+                                        runIf:
+                                          items:
+                                            type: string
+                                          type: array
+                                        target:
+                                          type: string
+                                        workingDirectory:
+                                          type: string
+                                      required:
+                                      - buildFile
+                                      - nantPath
+                                      - runIf
+                                      - target
+                                      - workingDirectory
+                                      type: object
+                                    pluggableAttributes:
+                                      properties:
+                                        configuration:
+                                          items:
+                                            properties:
+                                              key:
+                                                type: string
+                                              value:
+                                                type: string
+                                            required:
+                                            - key
+                                            - value
+                                            type: object
+                                          type: array
+                                        onCancel:
+                                          description: nolint:staticcheck
+                                          properties:
+                                            antAttributes:
+                                              properties:
+                                                buildFile:
+                                                  type: string
+                                                runIf:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                target:
+                                                  type: string
+                                                workingDirectory:
+                                                  type: string
+                                              required:
+                                              - buildFile
+                                              - runIf
+                                              - target
+                                              - workingDirectory
+                                              type: object
+                                            execAttributes:
+                                              properties:
+                                                arguments:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                command:
+                                                  type: string
+                                                runIf:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                workingDirectory:
+                                                  type: string
+                                              required:
+                                              - command
+                                              - runIf
+                                              type: object
+                                            fetchAttributes:
+                                              properties:
+                                                artifactId:
+                                                  type: string
+                                                artifactOrigin:
+                                                  enum:
+                                                  - gocd
+                                                  - external
+                                                  type: string
+                                                configuration:
+                                                  items:
+                                                    properties:
+                                                      key:
+                                                        type: string
+                                                      value:
+                                                        type: string
+                                                    required:
+                                                    - key
+                                                    - value
+                                                    type: object
+                                                  type: array
+                                                destination:
+                                                  type: string
+                                                isSourceAFile:
+                                                  type: boolean
+                                                job:
+                                                  type: string
+                                                pipeline:
+                                                  type: string
+                                                runIf:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                source:
+                                                  type: string
+                                                stage:
+                                                  type: string
+                                              required:
+                                              - artifactId
+                                              - artifactOrigin
+                                              - destination
+                                              - isSourceAFile
+                                              - job
+                                              - pipeline
+                                              - runIf
+                                              - source
+                                              - stage
+                                              type: object
+                                            nantAttributes:
+                                              properties:
+                                                buildFile:
+                                                  type: string
+                                                nantPath:
+                                                  type: string
+                                                runIf:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                target:
+                                                  type: string
+                                                workingDirectory:
+                                                  type: string
+                                              required:
+                                              - buildFile
+                                              - nantPath
+                                              - runIf
+                                              - target
+                                              - workingDirectory
+                                              type: object
+                                            pluggableAttributes:
+                                              properties:
+                                                configuration:
+                                                  items:
+                                                    properties:
+                                                      key:
+                                                        type: string
+                                                      value:
+                                                        type: string
+                                                    required:
+                                                    - key
+                                                    - value
+                                                    type: object
+                                                  type: array
+                                                pluginConfiguration:
+                                                  properties:
+                                                    id:
+                                                      type: string
+                                                    version:
+                                                      type: string
+                                                  required:
+                                                  - id
+                                                  - version
+                                                  type: object
+                                                runIf:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                              required:
+                                              - pluginConfiguration
+                                              - runIf
+                                              type: object
+                                            rakeAttributes:
+                                              properties:
+                                                buildFile:
+                                                  type: string
+                                                runIf:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                target:
+                                                  type: string
+                                                workingDirectory:
+                                                  type: string
+                                              required:
+                                              - buildFile
+                                              - runIf
+                                              - target
+                                              - workingDirectory
+                                              type: object
+                                            type:
+                                              enum:
+                                              - exec
+                                              - rake
+                                              - fetch
+                                              - ant
+                                              - nant
+                                              - pluggable_task
+                                              type: string
+                                          required:
+                                          - type
+                                          type: object
+                                          x-kubernetes-validations:
+                                          - message: fetchAttributes must be set only
+                                              when type is 'fetch'
+                                            rule: 'self.type == ''fetch'' ? has(self.fetchAttributes)
+                                              : !has(self.fetchAttributes)'
+                                          - message: execAttributes must be set only
+                                              when type is 'exec'
+                                            rule: 'self.type == ''exec'' ? has(self.execAttributes)
+                                              : !has(self.execAttributes)'
+                                          - message: antAttributes must be set only
+                                              when type is 'ant'
+                                            rule: 'self.type == ''ant'' ? has(self.antAttributes)
+                                              : !has(self.antAttributes)'
+                                          - message: nantAttributes must be set only
+                                              when type is 'nant'
+                                            rule: 'self.type == ''nant'' ? has(self.nantAttributes)
+                                              : !has(self.nantAttributes)'
+                                          - message: rakeAttributes must be set only
+                                              when type is 'rake'
+                                            rule: 'self.type == ''rake'' ? has(self.rakeAttributes)
+                                              : !has(self.rakeAttributes)'
+                                          - message: pluggableAttributes must be set
+                                              only when type is 'pluggable_task'
+                                            rule: 'self.type == ''pluggable_task''
+                                              ? has(self.pluggableAttributes) : !has(self.pluggableAttributes)'
+                                        pluginConfiguration:
+                                          properties:
+                                            id:
+                                              type: string
+                                            version:
+                                              type: string
+                                          required:
+                                          - id
+                                          - version
+                                          type: object
+                                        runIf:
+                                          items:
+                                            type: string
+                                          type: array
+                                      required:
+                                      - pluginConfiguration
+                                      - runIf
+                                      type: object
+                                    rakeAttributes:
+                                      properties:
+                                        buildFile:
+                                          type: string
+                                        onCancel:
+                                          description: nolint:staticcheck
+                                          properties:
+                                            antAttributes:
+                                              properties:
+                                                buildFile:
+                                                  type: string
+                                                runIf:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                target:
+                                                  type: string
+                                                workingDirectory:
+                                                  type: string
+                                              required:
+                                              - buildFile
+                                              - runIf
+                                              - target
+                                              - workingDirectory
+                                              type: object
+                                            execAttributes:
+                                              properties:
+                                                arguments:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                command:
+                                                  type: string
+                                                runIf:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                workingDirectory:
+                                                  type: string
+                                              required:
+                                              - command
+                                              - runIf
+                                              type: object
+                                            fetchAttributes:
+                                              properties:
+                                                artifactId:
+                                                  type: string
+                                                artifactOrigin:
+                                                  enum:
+                                                  - gocd
+                                                  - external
+                                                  type: string
+                                                configuration:
+                                                  items:
+                                                    properties:
+                                                      key:
+                                                        type: string
+                                                      value:
+                                                        type: string
+                                                    required:
+                                                    - key
+                                                    - value
+                                                    type: object
+                                                  type: array
+                                                destination:
+                                                  type: string
+                                                isSourceAFile:
+                                                  type: boolean
+                                                job:
+                                                  type: string
+                                                pipeline:
+                                                  type: string
+                                                runIf:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                source:
+                                                  type: string
+                                                stage:
+                                                  type: string
+                                              required:
+                                              - artifactId
+                                              - artifactOrigin
+                                              - destination
+                                              - isSourceAFile
+                                              - job
+                                              - pipeline
+                                              - runIf
+                                              - source
+                                              - stage
+                                              type: object
+                                            nantAttributes:
+                                              properties:
+                                                buildFile:
+                                                  type: string
+                                                nantPath:
+                                                  type: string
+                                                runIf:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                target:
+                                                  type: string
+                                                workingDirectory:
+                                                  type: string
+                                              required:
+                                              - buildFile
+                                              - nantPath
+                                              - runIf
+                                              - target
+                                              - workingDirectory
+                                              type: object
+                                            pluggableAttributes:
+                                              properties:
+                                                configuration:
+                                                  items:
+                                                    properties:
+                                                      key:
+                                                        type: string
+                                                      value:
+                                                        type: string
+                                                    required:
+                                                    - key
+                                                    - value
+                                                    type: object
+                                                  type: array
+                                                pluginConfiguration:
+                                                  properties:
+                                                    id:
+                                                      type: string
+                                                    version:
+                                                      type: string
+                                                  required:
+                                                  - id
+                                                  - version
+                                                  type: object
+                                                runIf:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                              required:
+                                              - pluginConfiguration
+                                              - runIf
+                                              type: object
+                                            rakeAttributes:
+                                              properties:
+                                                buildFile:
+                                                  type: string
+                                                runIf:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                target:
+                                                  type: string
+                                                workingDirectory:
+                                                  type: string
+                                              required:
+                                              - buildFile
+                                              - runIf
+                                              - target
+                                              - workingDirectory
+                                              type: object
+                                            type:
+                                              enum:
+                                              - exec
+                                              - rake
+                                              - fetch
+                                              - ant
+                                              - nant
+                                              - pluggable_task
+                                              type: string
+                                          required:
+                                          - type
+                                          type: object
+                                          x-kubernetes-validations:
+                                          - message: fetchAttributes must be set only
+                                              when type is 'fetch'
+                                            rule: 'self.type == ''fetch'' ? has(self.fetchAttributes)
+                                              : !has(self.fetchAttributes)'
+                                          - message: execAttributes must be set only
+                                              when type is 'exec'
+                                            rule: 'self.type == ''exec'' ? has(self.execAttributes)
+                                              : !has(self.execAttributes)'
+                                          - message: antAttributes must be set only
+                                              when type is 'ant'
+                                            rule: 'self.type == ''ant'' ? has(self.antAttributes)
+                                              : !has(self.antAttributes)'
+                                          - message: nantAttributes must be set only
+                                              when type is 'nant'
+                                            rule: 'self.type == ''nant'' ? has(self.nantAttributes)
+                                              : !has(self.nantAttributes)'
+                                          - message: rakeAttributes must be set only
+                                              when type is 'rake'
+                                            rule: 'self.type == ''rake'' ? has(self.rakeAttributes)
+                                              : !has(self.rakeAttributes)'
+                                          - message: pluggableAttributes must be set
+                                              only when type is 'pluggable_task'
+                                            rule: 'self.type == ''pluggable_task''
+                                              ? has(self.pluggableAttributes) : !has(self.pluggableAttributes)'
+                                        runIf:
+                                          items:
+                                            type: string
+                                          type: array
+                                        target:
+                                          type: string
+                                        workingDirectory:
+                                          type: string
+                                      required:
+                                      - buildFile
+                                      - runIf
+                                      - target
+                                      - workingDirectory
+                                      type: object
+                                    type:
+                                      enum:
+                                      - exec
+                                      - rake
+                                      - fetch
+                                      - ant
+                                      - nant
+                                      - pluggable_task
+                                      type: string
+                                  required:
+                                  - type
+                                  type: object
+                                  x-kubernetes-validations:
+                                  - message: execAttributes must be set only when
+                                      type is 'exec'
+                                    rule: 'self.type == ''exec'' ? has(self.execAttributes)
+                                      : !has(self.execAttributes)'
+                                  - message: fetchAttributes must be set only when
+                                      type is 'fetch'
+                                    rule: 'self.type == ''fetch'' ? has(self.fetchAttributes)
+                                      : !has(self.fetchAttributes)'
+                                  - message: antAttributes must be set only when type
+                                      is 'ant'
+                                    rule: 'self.type == ''ant'' ? has(self.antAttributes)
+                                      : !has(self.antAttributes)'
+                                  - message: nantAttributes must be set only when
+                                      type is 'nant'
+                                    rule: 'self.type == ''nant'' ? has(self.nantAttributes)
+                                      : !has(self.nantAttributes)'
+                                  - message: rakeAttributes must be set only when
+                                      type is 'rake'
+                                    rule: 'self.type == ''rake'' ? has(self.rakeAttributes)
+                                      : !has(self.rakeAttributes)'
+                                  - message: pluggableAttributes must be set only
+                                      when type is 'pluggable_task'
+                                    rule: 'self.type == ''pluggable_task'' ? has(self.pluggableAttributes)
+                                      : !has(self.pluggableAttributes)'
+                                maxItems: 50
+                                type: array
+                              timeout:
+                                anyOf:
+                                - type: integer
+                                - type: string
+                                default: never
+                                x-kubernetes-int-or-string: true
+                            required:
+                            - environmentVariables
+                            - name
+                            - tasks
+                            type: object
+                          maxItems: 50
+                          type: array
+                        name:
+                          type: string
+                        neverCleanupArtifacts:
+                          type: boolean
+                      required:
+                      - cleanWorkingDir
+                      - environmentVariables
+                      - fetchMaterials
+                      - jobs
+                      - name
+                      - neverCleanupArtifacts
+                      type: object
+                    maxItems: 50
+                    minItems: 1
+                    type: array
+                  template:
+                    type: string
+                  timer:
+                    properties:
+                      onlyOnChanges:
+                        type: boolean
+                      spec:
+                        type: string
+                    required:
+                    - onlyOnChanges
+                    - spec
+                    type: object
+                  trackingTool:
+                    properties:
+                      attributes:
+                        properties:
+                          regex:
+                            type: string
+                          urlPattern:
+                            type: string
+                        required:
+                        - regex
+                        - urlPattern
+                        type: object
+                      type:
+                        type: string
+                    required:
+                    - attributes
+                    - type
+                    type: object
+                required:
+                - name
+                type: object
+              managementPolicies:
+                default:
+                - '*'
+                description: |-
+                  THIS IS A BETA FIELD. It is on by default but can be opted out
+                  through a Crossplane feature flag.
+                  ManagementPolicies specify the array of actions Crossplane is allowed to
+                  take on the managed and external resources.
+                  This field is planned to replace the DeletionPolicy field in a future
+                  release. Currently, both could be set independently and non-default
+                  values would be honored if the feature flag is enabled. If both are
+                  custom, the DeletionPolicy field will be ignored.
+                  See the design doc for more information: https://github.com/crossplane/crossplane/blob/499895a25d1a1a0ba1604944ef98ac7a1a71f197/design/design-doc-observe-only-resources.md?plain=1#L223
+                  and this one: https://github.com/crossplane/crossplane/blob/444267e84783136daa93568b364a5f01228cacbe/design/one-pager-ignore-changes.md
+                items:
+                  description: |-
+                    A ManagementAction represents an action that the Crossplane controllers
+                    can take on an external resource.
+                  enum:
+                  - Observe
+                  - Create
+                  - Update
+                  - Delete
+                  - LateInitialize
+                  - '*'
+                  type: string
+                type: array
+              providerConfigRef:
+                default:
+                  name: default
+                description: |-
+                  ProviderConfigReference specifies how the provider that will be used to
+                  create, observe, update, and delete this managed resource should be
+                  configured.
+                properties:
+                  name:
+                    description: Name of the referenced object.
+                    type: string
+                  policy:
+                    description: Policies for referencing.
+                    properties:
+                      resolution:
+                        default: Required
+                        description: |-
+                          Resolution specifies whether resolution of this reference is required.
+                          The default is 'Required', which means the reconcile will fail if the
+                          reference cannot be resolved. 'Optional' means this reference will be
+                          a no-op if it cannot be resolved.
+                        enum:
+                        - Required
+                        - Optional
+                        type: string
+                      resolve:
+                        description: |-
+                          Resolve specifies when this reference should be resolved. The default
+                          is 'IfNotPresent', which will attempt to resolve the reference only when
+                          the corresponding field is not present. Use 'Always' to resolve the
+                          reference on every reconcile.
+                        enum:
+                        - Always
+                        - IfNotPresent
+                        type: string
+                    type: object
+                required:
+                - name
+                type: object
+              publishConnectionDetailsTo:
+                description: |-
+                  PublishConnectionDetailsTo specifies the connection secret config which
+                  contains a name, metadata and a reference to secret store config to
+                  which any connection details for this managed resource should be written.
+                  Connection details frequently include the endpoint, username,
+                  and password required to connect to the managed resource.
+                properties:
+                  configRef:
+                    default:
+                      name: default
+                    description: |-
+                      SecretStoreConfigRef specifies which secret store config should be used
+                      for this ConnectionSecret.
+                    properties:
+                      name:
+                        description: Name of the referenced object.
+                        type: string
+                      policy:
+                        description: Policies for referencing.
+                        properties:
+                          resolution:
+                            default: Required
+                            description: |-
+                              Resolution specifies whether resolution of this reference is required.
+                              The default is 'Required', which means the reconcile will fail if the
+                              reference cannot be resolved. 'Optional' means this reference will be
+                              a no-op if it cannot be resolved.
+                            enum:
+                            - Required
+                            - Optional
+                            type: string
+                          resolve:
+                            description: |-
+                              Resolve specifies when this reference should be resolved. The default
+                              is 'IfNotPresent', which will attempt to resolve the reference only when
+                              the corresponding field is not present. Use 'Always' to resolve the
+                              reference on every reconcile.
+                            enum:
+                            - Always
+                            - IfNotPresent
+                            type: string
+                        type: object
+                    required:
+                    - name
+                    type: object
+                  metadata:
+                    description: Metadata is the metadata for connection secret.
+                    properties:
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        description: |-
+                          Annotations are the annotations to be added to connection secret.
+                          - For Kubernetes secrets, this will be used as "metadata.annotations".
+                          - It is up to Secret Store implementation for others store types.
+                        type: object
+                      labels:
+                        additionalProperties:
+                          type: string
+                        description: |-
+                          Labels are the labels/tags to be added to connection secret.
+                          - For Kubernetes secrets, this will be used as "metadata.labels".
+                          - It is up to Secret Store implementation for others store types.
+                        type: object
+                      type:
+                        description: |-
+                          Type is the SecretType for the connection secret.
+                          - Only valid for Kubernetes Secret Stores.
+                        type: string
+                    type: object
+                  name:
+                    description: Name is the name of the connection secret.
+                    type: string
+                required:
+                - name
+                type: object
+              writeConnectionSecretToRef:
+                description: |-
+                  WriteConnectionSecretToReference specifies the namespace and name of a
+                  Secret to which any connection details for this managed resource should
+                  be written. Connection details frequently include the endpoint, username,
+                  and password required to connect to the managed resource.
+                  This field is planned to be replaced in a future release in favor of
+                  PublishConnectionDetailsTo. Currently, both could be set independently
+                  and connection details would be published to both without affecting
+                  each other.
+                properties:
+                  name:
+                    description: Name of the secret.
+                    type: string
+                  namespace:
+                    description: Namespace of the secret.
+                    type: string
+                required:
+                - name
+                - namespace
+                type: object
+            required:
+            - forProvider
+            type: object
+          status:
+            description: A PipelineConfigStatus represents the observed state of a
+              PipelineConfig.
+            properties:
+              atProvider:
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+              conditions:
+                description: Conditions of the resource.
+                items:
+                  description: A Condition that may apply to a resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        LastTransitionTime is the last time this condition transitioned from one
+                        status to another.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        A Message containing details about this condition's last transition from
+                        one status to another, if any.
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        ObservedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      type: integer
+                    reason:
+                      description: A Reason for this condition's last transition from
+                        one status to another.
+                      type: string
+                    status:
+                      description: Status of this condition; is it currently True,
+                        False, or Unknown?
+                      type: string
+                    type:
+                      description: |-
+                        Type of this condition. At most one of each condition type may apply to
+                        a resource at any point in time.
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              observedGeneration:
+                description: |-
+                  ObservedGeneration is the latest metadata.generation
+                  which resulted in either a ready state, or stalled due to error
+                  it can not recover from without human intervention.
+                format: int64
+                type: integer
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

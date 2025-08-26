@@ -36,6 +36,7 @@ linters:
     - unconvert
     - unparam
     - zerologlint
+    - staticcheck
   settings:
     dupl:
       threshold: 100
@@ -67,6 +68,9 @@ linters:
       for-loops: false
     unparam:
       check-exported: false
+    staticcheck:
+      checks:
+        - all
   exclusions:
     generated: lax
     rules:
@@ -119,3 +123,5 @@ formatters:
       - third_party$
       - builtin$
       - examples$
+skip-dirs:
+  - go

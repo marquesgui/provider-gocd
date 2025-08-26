@@ -1,4 +1,4 @@
-module github.com/crossplane/provider-template
+module github.com/marquesgui/provider-gocd
 
 go 1.23.0
 

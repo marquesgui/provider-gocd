@@ -14,22 +14,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package apis contains Kubernetes API for the Template provider.
+// Package apis contains Kubernetes API for the GoCD provider.
 package apis
 
+// samplev1alpha1 "github.com/crossplane/provider-gocd/apis/sample/v1alpha1"
 import (
-	"k8s.io/apimachinery/pkg/runtime"
-
-	samplev1alpha1 "github.com/crossplane/provider-template/apis/sample/v1alpha1"
-	templatev1alpha1 "github.com/crossplane/provider-template/apis/v1alpha1"
+  configgocdv1alpha1 "github.com/marquesgui/provider-gocd/apis/config/v1alpha1"
+  gocdv1alpha1 "github.com/marquesgui/provider-gocd/apis/v1alpha1"
+  "k8s.io/apimachinery/pkg/runtime"
 )
 
 func init() {
-	// Register the types with the Scheme so the components can map objects to GroupVersionKinds and back
-	AddToSchemes = append(AddToSchemes,
-		templatev1alpha1.SchemeBuilder.AddToScheme,
-		samplev1alpha1.SchemeBuilder.AddToScheme,
-	)
+  // Register the types with the Scheme so the components can map objects to GroupVersionKinds and back
+  // samplev1alpha1.SchemeBuilder.AddToScheme,
+  AddToSchemes = append(AddToSchemes,
+    gocdv1alpha1.SchemeBuilder.AddToScheme,
+    configgocdv1alpha1.SchemeBuilder.AddToScheme,
+  )
 }
 
 // AddToSchemes may be used to add all resources defined in the project to a Scheme
@@ -37,5 +38,5 @@ var AddToSchemes runtime.SchemeBuilder
 
 // AddToScheme adds all Resources to the Scheme
 func AddToScheme(s *runtime.Scheme) error {
-	return AddToSchemes.AddToScheme(s)
+  return AddToSchemes.AddToScheme(s)
 }
