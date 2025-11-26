@@ -38,10 +38,11 @@ IMAGES = provider-gocd
 # ====================================================================================
 # Setup XPKG
 
-XPKG_REG_ORGS ?= xpkg.upbound.io/crossplane
+#XPKG_REG_ORGS ?= xpkg.upbound.io/crossplane
+XPKG_REG_ORGS ?= ciandtspikeshareddev8h5qtwl6acr.azurecr.io/ciandtspike/crossplane
 # NOTE(hasheddan): skip promoting on xpkg.upbound.io as channel tags are
 # inferred.
-XPKG_REG_ORGS_NO_PROMOTE ?= xpkg.upbound.io/crossplane
+XPKG_REG_ORGS_NO_PROMOTE ?= ciandtspikeshareddev8h5qtwl6acr.azurecr.io/ciandtspike/crossplane
 XPKGS = provider-gocd
 -include build/makelib/xpkg.mk
 
