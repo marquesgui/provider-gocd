@@ -17,27 +17,27 @@ limitations under the License.
 package controller
 
 import (
-  "github.com/crossplane/crossplane-runtime/pkg/controller"
-  "github.com/marquesgui/provider-gocd/internal/controller/pipelineconfig"
-  ctrl "sigs.k8s.io/controller-runtime"
+	"github.com/crossplane/crossplane-runtime/pkg/controller"
+	"github.com/marquesgui/provider-gocd/internal/controller/pipelineconfig"
+	ctrl "sigs.k8s.io/controller-runtime"
 
-  "github.com/marquesgui/provider-gocd/internal/controller/authorizationconfiguration"
-  "github.com/marquesgui/provider-gocd/internal/controller/config"
-  "github.com/marquesgui/provider-gocd/internal/controller/role"
+	"github.com/marquesgui/provider-gocd/internal/controller/authorizationconfiguration"
+	"github.com/marquesgui/provider-gocd/internal/controller/config"
+	"github.com/marquesgui/provider-gocd/internal/controller/role"
 )
 
 // Setup creates all GoCD controllers with the supplied logger and adds them to
 // the supplied manager.
 func Setup(mgr ctrl.Manager, o controller.Options) error {
-  for _, setup := range []func(ctrl.Manager, controller.Options) error{
-    config.Setup,
-    authorizationconfiguration.Setup,
-    role.Setup,
-    pipelineconfig.Setup,
-  } {
-    if err := setup(mgr, o); err != nil {
-      return err
-    }
-  }
-  return nil
+	for _, setup := range []func(ctrl.Manager, controller.Options) error{
+		config.Setup,
+		authorizationconfiguration.Setup,
+		role.Setup,
+		pipelineconfig.Setup,
+	} {
+		if err := setup(mgr, o); err != nil {
+			return err
+		}
+	}
+	return nil
 }

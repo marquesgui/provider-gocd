@@ -71,35 +71,77 @@ spec:
                 - Delete
                 type: string
               forProvider:
-                description: PipelineConfigForProvider are the configurable fields
-                  of a PipelineConfig.
+                description: PipelineConfigForProvider defines the configuration for
+                  a GoCD pipeline as required by the provider.
                 properties:
                   environmentVariables:
+                    description: EnvironmentVariables is a list of environment variables
+                      for the pipeline.
                     items:
                       properties:
-                        encryptedValue:
-                          type: string
                         name:
                           type: string
-                        secure:
-                          type: boolean
                         value:
                           type: string
+                        valueFrom:
+                          properties:
+                            configMapKeyRef:
+                              properties:
+                                key:
+                                  type: string
+                                name:
+                                  type: string
+                                namespace:
+                                  type: string
+                              required:
+                              - key
+                              - name
+                              - namespace
+                              type: object
+                            secretKeyRef:
+                              description: A SecretKeySelector is a reference to a
+                                secret key in an arbitrary namespace.
+                              properties:
+                                key:
+                                  description: The key to select.
+                                  type: string
+                                name:
+                                  description: Name of the secret.
+                                  type: string
+                                namespace:
+                                  description: Namespace of the secret.
+                                  type: string
+                              required:
+                              - key
+                              - name
+                              - namespace
+                              type: object
+                          type: object
                       required:
                       - name
                       type: object
                     maxItems: 50
                     type: array
                   group:
+                    description: Group is the GoCD pipeline group to which this pipeline
+                      belongs.
                     type: string
                   labelTemplate:
+                    description: LabelTemplate is the template used for pipeline labeling.
                     type: string
                   lockBehavior:
                     default: none
+                    description: LockBehavior defines the locking behavior for the
+                      pipeline.
                     type: string
                   materials:
+                    description: Materials is a list of materials (sources) for the
+                      pipeline.
                     items:
                       description: |-
+                        Material represents a material source for a GoCD pipeline.
+                        Type specifies the kind of material (e.g., git, svn, hg, p4, tfs, dependency, package, plugin).
+                        Each material type has its own set of attributes, only one of which should be set at a time.
                         // nolint:staticcheck
                         // +kubebuilder:validation:XValidation:rule="self.type == 'git' ? has(self.gitAttributes) : !has(self.gitAttributes)",message="gitAttributes must be set only when type is 'git'"
                         // +kubebuilder:validation:XValidation:rule="self.type == 'hg' ? has(self.hgAttributes) : !has(self.hgAttributes)",message="hgAttributes must be set only when type is 'hg'"
@@ -111,16 +153,28 @@ spec:
                         // +kubebuilder:validation:XValidation:rule="self.type == 'plugin' ? has(self.pluginAttributes) : !has(self.pluginAttributes)",message="pluginAttributes must be set only when type is 'plugin'"
                       properties:
                         dependencyAttributes:
+                          description: DependencyAttributes contains configuration
+                            for dependency materials.
                           properties:
                             autoUpdate:
+                              description: AutoUpdate determines if GoCD should automatically
+                                poll for changes in the dependency.
                               type: boolean
                             ignoreForScheduling:
+                              description: IgnoreForScheduling indicates if this dependency
+                                should be ignored for scheduling purposes.
                               type: boolean
                             name:
+                              description: Name is the identifier for the dependency
+                                material.
                               type: string
                             pipeline:
+                              description: Pipeline specifies the name of the upstream
+                                pipeline.
                               type: string
                             stage:
+                              description: Stage specifies the stage in the upstream
+                                pipeline to depend on.
                               type: string
                           required:
                           - autoUpdate
@@ -130,80 +184,131 @@ spec:
                           - stage
                           type: object
                         gitAttributes:
+                          description: GitAttributes contains configuration for git
+                            materials.
                           properties:
                             autoUpdate:
+                              description: AutoUpdate determines if GoCD should automatically
+                                poll for changes.
                               type: boolean
                             branch:
+                              description: Branch specifies the branch to track.
                               type: string
                             destination:
+                              description: Destination is an optional folder where
+                                the repository will be cloned.
                               type: string
                             filter:
+                              description: Filter specifies file patterns to include
+                                or exclude.
                               properties:
                                 ignore:
                                   default: []
+                                  description: Ignore specifies file patterns to be
+                                    excluded from triggering pipeline runs.
                                   items:
                                     type: string
                                   maxItems: 50
                                   type: array
                                 includes:
                                   default: []
+                                  description: Includes specifies file patterns to
+                                    be included for triggering pipeline runs.
                                   items:
                                     type: string
                                   maxItems: 50
                                   type: array
                               type: object
                             invertFilter:
+                              description: InvertFilter indicates if the filter should
+                                be inverted.
                               type: boolean
                             name:
+                              description: Name is an optional identifier for the
+                                material.
                               type: string
                             password:
+                              description: Password is an optional password for repository
+                                authentication.
                               type: string
                             shallowClone:
+                              description: ShallowClone determines if a shallow clone
+                                should be performed.
                               type: boolean
                             submoduleFolder:
+                              description: SubmoduleFolder specifies a subfolder for
+                                Git submodules.
                               type: string
                             url:
+                              description: URL specifies the Git repository location.
                               type: string
                             username:
+                              description: Username is an optional username for repository
+                                authentication.
                               type: string
                           required:
                           - branch
                           - url
                           type: object
                         hgAttributes:
+                          description: HgAttributes contains configuration for mercurial
+                            materials.
                           properties:
                             autoUpdate:
+                              description: AutoUpdate determines if GoCD should automatically
+                                poll for changes.
                               type: boolean
                             branch:
+                              description: Branch specifies the branch to track.
                               type: string
                             destination:
+                              description: Destination is an optional folder where
+                                the repository will be checked out.
                               type: string
                             encryptedPassword:
+                              description: EncryptedPassword is an optional encrypted
+                                password for repository authentication.
                               type: string
                             filter:
+                              description: Filter specifies file patterns to include
+                                or exclude.
                               properties:
                                 ignore:
                                   default: []
+                                  description: Ignore specifies file patterns to be
+                                    excluded from triggering pipeline runs.
                                   items:
                                     type: string
                                   maxItems: 50
                                   type: array
                                 includes:
                                   default: []
+                                  description: Includes specifies file patterns to
+                                    be included for triggering pipeline runs.
                                   items:
                                     type: string
                                   maxItems: 50
                                   type: array
                               type: object
                             invertFilter:
+                              description: InvertFilter indicates if the filter should
+                                be inverted.
                               type: boolean
                             name:
+                              description: Name is an optional identifier for the
+                                material.
                               type: string
                             password:
+                              description: Password is an optional password for repository
+                                authentication.
                               type: string
                             url:
+                              description: URL specifies the Mercurial repository
+                                location.
                               type: string
                             username:
+                              description: Username is an optional username for repository
+                                authentication.
                               type: string
                           required:
                           - branch
@@ -211,156 +316,248 @@ spec:
                           - url
                           type: object
                         p4Attributes:
+                          description: P4Attributes contains configuration for perforce
+                            materials.
                           properties:
                             autoUpdate:
+                              description: AutoUpdate determines if GoCD should automatically
+                                poll for changes.
                               type: boolean
                             destination:
+                              description: Destination is an optional folder where
+                                the repository will be checked out.
                               type: string
                             encryptedPassword:
+                              description: EncryptedPassword is an optional encrypted
+                                password for repository authentication.
                               type: string
                             filter:
+                              description: Filter specifies file patterns to include
+                                or exclude.
                               properties:
                                 ignore:
                                   default: []
+                                  description: Ignore specifies file patterns to be
+                                    excluded from triggering pipeline runs.
                                   items:
                                     type: string
                                   maxItems: 50
                                   type: array
                                 includes:
                                   default: []
+                                  description: Includes specifies file patterns to
+                                    be included for triggering pipeline runs.
                                   items:
                                     type: string
                                   maxItems: 50
                                   type: array
                               type: object
                             invertFilter:
+                              description: InvertFilter indicates if the filter should
+                                be inverted.
                               type: boolean
                             name:
+                              description: Name is an optional identifier for the
+                                material.
                               type: string
                             password:
+                              description: Password is an optional password for repository
+                                authentication.
                               type: string
                             port:
+                              description: Port specifies the Perforce server address.
                               type: string
                             useTickets:
+                              description: UseTickets indicates whether to use Perforce
+                                tickets for authentication.
                               type: boolean
                             username:
+                              description: Username is an optional username for repository
+                                authentication.
                               type: string
                             view:
+                              description: View specifies the Perforce view mapping.
                               type: string
                           required:
                           - name
                           - port
                           type: object
                         packageAttributes:
+                          description: PackageAttributes contains configuration for
+                            package materials.
                           properties:
                             ref:
+                              description: Ref specifies the reference to the package
+                                repository.
                               type: string
                           required:
                           - ref
                           type: object
                         pluginAttributes:
+                          description: PluginAttributes contains configuration for
+                            plugin materials.
                           properties:
                             destination:
+                              description: Destination is the folder where the plugin
+                                material will be placed.
                               type: string
                             filter:
                               default: {}
+                              description: Filter specifies file patterns to include
+                                or exclude.
                               properties:
                                 ignore:
                                   default: []
+                                  description: Ignore specifies file patterns to be
+                                    excluded from triggering pipeline runs.
                                   items:
                                     type: string
                                   maxItems: 50
                                   type: array
                                 includes:
                                   default: []
+                                  description: Includes specifies file patterns to
+                                    be included for triggering pipeline runs.
                                   items:
                                     type: string
                                   maxItems: 50
                                   type: array
                               type: object
                             invertFilter:
+                              description: InvertFilter indicates if the filter should
+                                be inverted.
                               type: boolean
                             ref:
+                              description: Ref specifies the reference to the plugin.
                               type: string
                           required:
                           - destination
                           - ref
                           type: object
                         svnAttributes:
+                          description: SvnAttributes contains configuration for svn
+                            materials.
                           properties:
                             autoUpdate:
+                              description: AutoUpdate determines if GoCD should automatically
+                                poll for changes.
                               type: boolean
                             checkExternals:
+                              description: CheckExternals specifies whether to check
+                                SVN externals.
                               type: boolean
                             destination:
+                              description: Destination is an optional folder where
+                                the repository will be checked out.
                               type: string
                             encryptedPassword:
+                              description: EncryptedPassword is an optional encrypted
+                                password for repository authentication.
                               type: string
                             filter:
+                              description: Filter specifies file patterns to include
+                                or exclude.
                               properties:
                                 ignore:
                                   default: []
+                                  description: Ignore specifies file patterns to be
+                                    excluded from triggering pipeline runs.
                                   items:
                                     type: string
                                   maxItems: 50
                                   type: array
                                 includes:
                                   default: []
+                                  description: Includes specifies file patterns to
+                                    be included for triggering pipeline runs.
                                   items:
                                     type: string
                                   maxItems: 50
                                   type: array
                               type: object
                             invertFilter:
+                              description: InvertFilter indicates if the filter should
+                                be inverted.
                               type: boolean
                             name:
+                              description: Name is an optional identifier for the
+                                material.
                               type: string
                             password:
+                              description: Password is an optional password for repository
+                                authentication.
                               type: string
                             url:
+                              description: URL specifies the SVN repository location.
                               type: string
                             username:
+                              description: Username is an optional username for repository
+                                authentication.
                               type: string
                           required:
                           - name
                           - url
                           type: object
                         tfsAttributes:
+                          description: TfsAttributes contains configuration for TFS
+                            materials.
                           properties:
                             autoUpdate:
+                              description: AutoUpdate determines if GoCD should automatically
+                                poll for changes.
                               type: boolean
                             destination:
+                              description: Destination is an optional folder where
+                                the repository will be checked out.
                               type: string
                             domain:
+                              description: Domain specifies the domain for TFS authentication.
                               type: string
                             encryptedPassword:
+                              description: EncryptedPassword is an optional encrypted
+                                password for repository authentication.
                               type: string
                             filter:
+                              description: Filter specifies file patterns to include
+                                or exclude.
                               properties:
                                 ignore:
                                   default: []
+                                  description: Ignore specifies file patterns to be
+                                    excluded from triggering pipeline runs.
                                   items:
                                     type: string
                                   maxItems: 50
                                   type: array
                                 includes:
                                   default: []
+                                  description: Includes specifies file patterns to
+                                    be included for triggering pipeline runs.
                                   items:
                                     type: string
                                   maxItems: 50
                                   type: array
                               type: object
                             invertFilter:
+                              description: InvertFilter indicates if the filter should
+                                be inverted.
                               type: boolean
                             name:
+                              description: Name is an optional identifier for the
+                                material.
                               type: string
                             password:
+                              description: Password is the password for TFS authentication.
                               type: string
                             projectPath:
+                              description: ProjectPath specifies the path to the TFS
+                                project.
                               type: string
                             url:
+                              description: URL specifies the TFS server URL.
                               type: string
                             username:
+                              description: Username is the username for TFS authentication.
                               type: string
                           required:
                           - autoUpdate
@@ -376,6 +573,8 @@ spec:
                           - username
                           type: object
                         type:
+                          description: MaterialType defines the supported types of
+                            materials for GoCD pipelines.
                           enum:
                           - git
                           - svn
@@ -393,17 +592,18 @@ spec:
                     minItems: 1
                     type: array
                   name:
+                    description: Name is the name of the pipeline.
                     type: string
                   origin:
                     default:
                       type: gocd
-                    description: |-
-                      // nolint:staticcheck
-                      // +kubebuilder:validation:XValidation:rule="self.type == 'config_repo' ? has(self.id) : !has(self.id)",message="id must be set only when the type is 'config_repo'"
+                    description: Origin specifies the origin of the pipeline configuration.
                     properties:
                       id:
                         type: string
                       type:
+                        description: OriginType is a string type that specifies the
+                          origin of the pipeline configuration.
                         enum:
                         - gocd
                         - config_repo
@@ -412,11 +612,16 @@ spec:
                     - type
                     type: object
                   parameters:
+                    description: Parameters is a list of parameters for the pipeline.
                     items:
+                      description: Parameter represents a key-value pair used for
+                        parameterizing GoCD pipeline configurations.
                       properties:
                         name:
+                          description: Name is the identifier for the parameter.
                           type: string
                         value:
+                          description: Value is the value assigned to the parameter.
                           type: string
                       required:
                       - name
@@ -425,19 +630,31 @@ spec:
                     maxItems: 50
                     type: array
                   stages:
+                    description: Stages is a list of stages for the pipeline.
                     items:
+                      description: Stage represents a stage in a GoCD pipeline.
                       properties:
                         approval:
+                          description: Approval defines the approval configuration
+                            for the stage.
                           properties:
                             allowOnlyOnSuccess:
+                              description: AllowOnlyOnSuccess indicates if approval
+                                is allowed only when the previous stage succeeds.
                               type: boolean
                             authorization:
+                              description: Authorization defines the authorization
+                                configuration for stage approval.
                               properties:
                                 roles:
+                                  description: Roles is a list of roles authorized
+                                    to approve the stage.
                                   items:
                                     type: string
                                   type: array
                                 users:
+                                  description: Users is a list of users authorized
+                                    to approve the stage.
                                   items:
                                     type: string
                                   type: array
@@ -446,6 +663,8 @@ spec:
                               - users
                               type: object
                             type:
+                              description: Type specifies the approval type, such
+                                as manual or success.
                               enum:
                               - manual
                               - success
@@ -455,33 +674,82 @@ spec:
                           - type
                           type: object
                         cleanWorkingDir:
+                          description: CleanWorkingDir specifies if the working directory
+                            should be cleaned before the stage runs.
                           type: boolean
                         environmentVariables:
+                          description: EnvironmentVariables is a list of environment
+                            variables available to the stage.
                           items:
                             properties:
-                              encryptedValue:
-                                type: string
                               name:
                                 type: string
-                              secure:
-                                type: boolean
                               value:
                                 type: string
+                              valueFrom:
+                                properties:
+                                  configMapKeyRef:
+                                    properties:
+                                      key:
+                                        type: string
+                                      name:
+                                        type: string
+                                      namespace:
+                                        type: string
+                                    required:
+                                    - key
+                                    - name
+                                    - namespace
+                                    type: object
+                                  secretKeyRef:
+                                    description: A SecretKeySelector is a reference
+                                      to a secret key in an arbitrary namespace.
+                                    properties:
+                                      key:
+                                        description: The key to select.
+                                        type: string
+                                      name:
+                                        description: Name of the secret.
+                                        type: string
+                                      namespace:
+                                        description: Namespace of the secret.
+                                        type: string
+                                    required:
+                                    - key
+                                    - name
+                                    - namespace
+                                    type: object
+                                type: object
                             required:
                             - name
                             type: object
                           maxItems: 50
                           type: array
                         fetchMaterials:
+                          description: FetchMaterials determines if materials should
+                            be fetched before running the stage.
                           type: boolean
                         jobs:
+                          description: Jobs is a list of jobs that are part of this
+                            stage.
                           items:
+                            description: Job represents a job within a stage in a
+                              GoCD pipeline.
                             properties:
                               artifacts:
+                                description: Artifacts is a list of artifacts produced
+                                  by the job.
                                 items:
-                                  description: nolint:staticcheck
+                                  description: |-
+                                    JobArtifact represents an artifact produced or consumed by a job.
+                                    The fields required depend on the artifact type.
+                                    For 'test' and 'build', source and destination are required.
+                                    For 'external', id and storeId are required.
+                                    nolint:staticcheck
                                   properties:
                                     configuration:
+                                      description: Configuration is an optional list
+                                        of key-value pairs for artifact configuration.
                                       items:
                                         properties:
                                           key:
@@ -495,14 +763,24 @@ spec:
                                       maxItems: 100
                                       type: array
                                     destination:
+                                      description: Destination is the destination
+                                        path for the artifact (required for test/build).
                                       type: string
                                     id:
+                                      description: ID is the identifier for the external
+                                        artifact (required for external).
                                       type: string
                                     source:
+                                      description: Source is the source path of the
+                                        artifact (required for test/build).
                                       type: string
                                     storeId:
+                                      description: StoreID is the identifier of the
+                                        external artifact store (required for external).
                                       type: string
                                     type:
+                                      description: 'Type specifies the type of artifact.
+                                        Allowed values: test, build, external.'
                                       enum:
                                       - test
                                       - build
@@ -528,26 +806,63 @@ spec:
                                       && self.storeId != "" : true'
                                 type: array
                               elasticProfileID:
+                                description: ElasticProfileID specifies the elastic
+                                  agent profile to use for the job.
                                 type: string
                               environmentVariables:
+                                description: EnvironmentVariables is a list of environment
+                                  variables available to the job.
                                 items:
                                   properties:
-                                    encryptedValue:
-                                      type: string
                                     name:
                                       type: string
-                                    secure:
-                                      type: boolean
                                     value:
                                       type: string
+                                    valueFrom:
+                                      properties:
+                                        configMapKeyRef:
+                                          properties:
+                                            key:
+                                              type: string
+                                            name:
+                                              type: string
+                                            namespace:
+                                              type: string
+                                          required:
+                                          - key
+                                          - name
+                                          - namespace
+                                          type: object
+                                        secretKeyRef:
+                                          description: A SecretKeySelector is a reference
+                                            to a secret key in an arbitrary namespace.
+                                          properties:
+                                            key:
+                                              description: The key to select.
+                                              type: string
+                                            name:
+                                              description: Name of the secret.
+                                              type: string
+                                            namespace:
+                                              description: Namespace of the secret.
+                                              type: string
+                                          required:
+                                          - key
+                                          - name
+                                          - namespace
+                                          type: object
+                                      type: object
                                   required:
                                   - name
                                   type: object
                                 type: array
                               name:
+                                description: Name is the identifier for the job.
                                 type: string
                               resources:
                                 default: []
+                                description: Resources is a list of resources required
+                                  by the job.
                                 items:
                                   type: string
                                 maxItems: 10
@@ -557,13 +872,23 @@ spec:
                                 - type: integer
                                 - type: string
                                 default: ""
+                                description: RunInstanceCount specifies the number
+                                  of instances to run, as an integer or string.
                                 x-kubernetes-int-or-string: true
                               tabs:
+                                description: Tabs defines custom tabs to display job
+                                  information in the GoCD UI.
                                 items:
+                                  description: JobTab represents a tab in the job
+                                    UI, allowing custom display of files or reports.
                                   properties:
                                     name:
+                                      description: Name is the display name of the
+                                        tab.
                                       type: string
                                     path:
+                                      description: Path is the file path or pattern
+                                        to display in the tab.
                                       type: string
                                   required:
                                   - name
@@ -571,27 +896,52 @@ spec:
                                   type: object
                                 type: array
                               tasks:
+                                description: Tasks is a list of tasks to be executed
+                                  by the job.
                                 items:
-                                  description: nolint:staticcheck
+                                  description: |-
+                                    TaskWithCancel represents a task in a GoCD pipeline job, supporting multiple task types and their attributes.
+                                    nolint:staticcheck
                                   properties:
                                     antAttributes:
+                                      description: AntAttributes contains configuration
+                                        for ant tasks.
                                       properties:
                                         buildFile:
+                                          description: BuildFile is the path to the
+                                            Ant build file.
                                           type: string
                                         onCancel:
-                                          description: nolint:staticcheck
+                                          description: OnCancel specifies a task to
+                                            execute if the main ant task is canceled.
                                           properties:
                                             antAttributes:
+                                              description: AntAttributes contains
+                                                configuration for ant tasks.
                                               properties:
                                                 buildFile:
+                                                  description: BuildFile is the path
+                                                    to the Ant build file.
                                                   type: string
                                                 runIf:
+                                                  description: RunIf specifies the
+                                                    conditions under which the ant
+                                                    task should run.
                                                   items:
+                                                    description: TaskAttributesRunIfTypes
+                                                      defines the possible conditions
+                                                      for running a task in a GoCD
+                                                      pipeline job.
                                                     type: string
                                                   type: array
                                                 target:
+                                                  description: Target is the Ant target
+                                                    to execute.
                                                   type: string
                                                 workingDirectory:
+                                                  description: WorkingDirectory specifies
+                                                    the directory in which to run
+                                                    the Ant task.
                                                   type: string
                                               required:
                                               - buildFile
@@ -600,33 +950,59 @@ spec:
                                               - workingDirectory
                                               type: object
                                             execAttributes:
+                                              description: ExecAttributes contains
+                                                configuration for exec tasks.
                                               properties:
                                                 arguments:
+                                                  description: Arguments is a list
+                                                    of arguments to pass to the command.
                                                   items:
                                                     type: string
                                                   type: array
                                                 command:
+                                                  description: Command is the executable
+                                                    to run.
                                                   type: string
                                                 runIf:
+                                                  description: RunIf specifies the
+                                                    conditions under which the task
+                                                    should run.
                                                   items:
+                                                    description: TaskAttributesRunIfTypes
+                                                      defines the possible conditions
+                                                      for running a task in a GoCD
+                                                      pipeline job.
                                                     type: string
                                                   type: array
                                                 workingDirectory:
+                                                  description: WorkingDirectory specifies
+                                                    the directory in which to run
+                                                    the command.
                                                   type: string
                                               required:
                                               - command
                                               - runIf
                                               type: object
                                             fetchAttributes:
+                                              description: FetchAttributes contains
+                                                configuration for fetch tasks.
                                               properties:
                                                 artifactId:
+                                                  description: ArtifactID is the identifier
+                                                    of the artifact to fetch.
                                                   type: string
                                                 artifactOrigin:
+                                                  description: ArtifactOrigin specifies
+                                                    the origin of the artifact to
+                                                    fetch (e.g., gocd, external).
                                                   enum:
                                                   - gocd
                                                   - external
                                                   type: string
                                                 configuration:
+                                                  description: Configuration is an
+                                                    optional list of key-value pairs
+                                                    for additional configuration.
                                                   items:
                                                     properties:
                                                       key:
@@ -639,20 +1015,43 @@ spec:
                                                     type: object
                                                   type: array
                                                 destination:
+                                                  description: Destination is the
+                                                    destination path where the artifact
+                                                    will be placed.
                                                   type: string
                                                 isSourceAFile:
+                                                  description: IsSourceAFile indicates
+                                                    if the source is a file.
                                                   type: boolean
                                                 job:
+                                                  description: Job is the name of
+                                                    the job from which to fetch the
+                                                    artifact.
                                                   type: string
                                                 pipeline:
+                                                  description: Pipeline is the name
+                                                    of the pipeline from which to
+                                                    fetch the artifact.
                                                   type: string
                                                 runIf:
+                                                  description: RunIf specifies the
+                                                    conditions under which the fetch
+                                                    task should run.
                                                   items:
+                                                    description: TaskAttributesRunIfTypes
+                                                      defines the possible conditions
+                                                      for running a task in a GoCD
+                                                      pipeline job.
                                                     type: string
                                                   type: array
                                                 source:
+                                                  description: Source is the source
+                                                    path of the artifact to fetch.
                                                   type: string
                                                 stage:
+                                                  description: Stage is the name of
+                                                    the stage from which to fetch
+                                                    the artifact.
                                                   type: string
                                               required:
                                               - artifactId
@@ -666,18 +1065,36 @@ spec:
                                               - stage
                                               type: object
                                             nantAttributes:
+                                              description: NantAttributes contains
+                                                configuration for nant tasks.
                                               properties:
                                                 buildFile:
+                                                  description: BuildFile is the path
+                                                    to the Nant build file.
                                                   type: string
                                                 nantPath:
+                                                  description: NantPath specifies
+                                                    the path to the Nant executable.
                                                   type: string
                                                 runIf:
+                                                  description: RunIf specifies the
+                                                    conditions under which the nant
+                                                    task should run.
                                                   items:
+                                                    description: TaskAttributesRunIfTypes
+                                                      defines the possible conditions
+                                                      for running a task in a GoCD
+                                                      pipeline job.
                                                     type: string
                                                   type: array
                                                 target:
+                                                  description: Target is the Nant
+                                                    target to execute.
                                                   type: string
                                                 workingDirectory:
+                                                  description: WorkingDirectory specifies
+                                                    the directory in which to run
+                                                    the Nant task.
                                                   type: string
                                               required:
                                               - buildFile
@@ -687,8 +1104,13 @@ spec:
                                               - workingDirectory
                                               type: object
                                             pluggableAttributes:
+                                              description: PluggableAttributes contains
+                                                configuration for pluggable tasks.
                                               properties:
                                                 configuration:
+                                                  description: Configuration is an
+                                                    optional list of key-value pairs
+                                                    for additional plugin configuration.
                                                   items:
                                                     properties:
                                                       key:
@@ -701,17 +1123,32 @@ spec:
                                                     type: object
                                                   type: array
                                                 pluginConfiguration:
+                                                  description: PluginConfiguration
+                                                    contains the plugin configuration
+                                                    details.
                                                   properties:
                                                     id:
+                                                      description: ID is the identifier
+                                                        of the plugin.
                                                       type: string
                                                     version:
+                                                      description: Version specifies
+                                                        the version of the plugin
+                                                        to use.
                                                       type: string
                                                   required:
                                                   - id
                                                   - version
                                                   type: object
                                                 runIf:
+                                                  description: RunIf specifies the
+                                                    conditions under which the pluggable
+                                                    task should run.
                                                   items:
+                                                    description: TaskAttributesRunIfTypes
+                                                      defines the possible conditions
+                                                      for running a task in a GoCD
+                                                      pipeline job.
                                                     type: string
                                                   type: array
                                               required:
@@ -719,16 +1156,32 @@ spec:
                                               - runIf
                                               type: object
                                             rakeAttributes:
+                                              description: RakeAttributes contains
+                                                configuration for rake tasks.
                                               properties:
                                                 buildFile:
+                                                  description: BuildFile is the path
+                                                    to the Rake build file.
                                                   type: string
                                                 runIf:
+                                                  description: RunIf specifies the
+                                                    conditions under which the rake
+                                                    task should run.
                                                   items:
+                                                    description: TaskAttributesRunIfTypes
+                                                      defines the possible conditions
+                                                      for running a task in a GoCD
+                                                      pipeline job.
                                                     type: string
                                                   type: array
                                                 target:
+                                                  description: Target is the Rake
+                                                    target to execute.
                                                   type: string
                                                 workingDirectory:
+                                                  description: WorkingDirectory specifies
+                                                    the directory in which to run
+                                                    the Rake task.
                                                   type: string
                                               required:
                                               - buildFile
@@ -737,6 +1190,9 @@ spec:
                                               - workingDirectory
                                               type: object
                                             type:
+                                              description: |-
+                                                Type specifies the kind of task (e.g., exec, rake, fetch, ant, nant, pluggable_task).
+                                                Only the attributes corresponding to the selected type should be set; others must be nil.
                                               enum:
                                               - exec
                                               - rake
@@ -774,12 +1230,22 @@ spec:
                                             rule: 'self.type == ''pluggable_task''
                                               ? has(self.pluggableAttributes) : !has(self.pluggableAttributes)'
                                         runIf:
+                                          description: RunIf specifies the conditions
+                                            under which the ant task should run.
                                           items:
+                                            description: TaskAttributesRunIfTypes
+                                              defines the possible conditions for
+                                              running a task in a GoCD pipeline job.
                                             type: string
                                           type: array
                                         target:
+                                          description: Target is the Ant target to
+                                            execute.
                                           type: string
                                         workingDirectory:
+                                          description: WorkingDirectory specifies
+                                            the directory in which to run the Ant
+                                            task.
                                           type: string
                                       required:
                                       - buildFile
@@ -788,27 +1254,50 @@ spec:
                                       - workingDirectory
                                       type: object
                                     execAttributes:
+                                      description: ExecAttributes contains configuration
+                                        for exec tasks.
                                       properties:
                                         arguments:
+                                          description: Arguments is a list of arguments
+                                            to pass to the command.
                                           items:
                                             type: string
                                           type: array
                                         command:
+                                          description: Command is the executable to
+                                            run.
                                           type: string
                                         onCancel:
-                                          description: nolint:staticcheck
+                                          description: OnCancel specifies a task to
+                                            execute if the main exec task is canceled.
                                           properties:
                                             antAttributes:
+                                              description: AntAttributes contains
+                                                configuration for ant tasks.
                                               properties:
                                                 buildFile:
+                                                  description: BuildFile is the path
+                                                    to the Ant build file.
                                                   type: string
                                                 runIf:
+                                                  description: RunIf specifies the
+                                                    conditions under which the ant
+                                                    task should run.
                                                   items:
+                                                    description: TaskAttributesRunIfTypes
+                                                      defines the possible conditions
+                                                      for running a task in a GoCD
+                                                      pipeline job.
                                                     type: string
                                                   type: array
                                                 target:
+                                                  description: Target is the Ant target
+                                                    to execute.
                                                   type: string
                                                 workingDirectory:
+                                                  description: WorkingDirectory specifies
+                                                    the directory in which to run
+                                                    the Ant task.
                                                   type: string
                                               required:
                                               - buildFile
@@ -817,33 +1306,59 @@ spec:
                                               - workingDirectory
                                               type: object
                                             execAttributes:
+                                              description: ExecAttributes contains
+                                                configuration for exec tasks.
                                               properties:
                                                 arguments:
+                                                  description: Arguments is a list
+                                                    of arguments to pass to the command.
                                                   items:
                                                     type: string
                                                   type: array
                                                 command:
+                                                  description: Command is the executable
+                                                    to run.
                                                   type: string
                                                 runIf:
+                                                  description: RunIf specifies the
+                                                    conditions under which the task
+                                                    should run.
                                                   items:
+                                                    description: TaskAttributesRunIfTypes
+                                                      defines the possible conditions
+                                                      for running a task in a GoCD
+                                                      pipeline job.
                                                     type: string
                                                   type: array
                                                 workingDirectory:
+                                                  description: WorkingDirectory specifies
+                                                    the directory in which to run
+                                                    the command.
                                                   type: string
                                               required:
                                               - command
                                               - runIf
                                               type: object
                                             fetchAttributes:
+                                              description: FetchAttributes contains
+                                                configuration for fetch tasks.
                                               properties:
                                                 artifactId:
+                                                  description: ArtifactID is the identifier
+                                                    of the artifact to fetch.
                                                   type: string
                                                 artifactOrigin:
+                                                  description: ArtifactOrigin specifies
+                                                    the origin of the artifact to
+                                                    fetch (e.g., gocd, external).
                                                   enum:
                                                   - gocd
                                                   - external
                                                   type: string
                                                 configuration:
+                                                  description: Configuration is an
+                                                    optional list of key-value pairs
+                                                    for additional configuration.
                                                   items:
                                                     properties:
                                                       key:
@@ -856,20 +1371,43 @@ spec:
                                                     type: object
                                                   type: array
                                                 destination:
+                                                  description: Destination is the
+                                                    destination path where the artifact
+                                                    will be placed.
                                                   type: string
                                                 isSourceAFile:
+                                                  description: IsSourceAFile indicates
+                                                    if the source is a file.
                                                   type: boolean
                                                 job:
+                                                  description: Job is the name of
+                                                    the job from which to fetch the
+                                                    artifact.
                                                   type: string
                                                 pipeline:
+                                                  description: Pipeline is the name
+                                                    of the pipeline from which to
+                                                    fetch the artifact.
                                                   type: string
                                                 runIf:
+                                                  description: RunIf specifies the
+                                                    conditions under which the fetch
+                                                    task should run.
                                                   items:
+                                                    description: TaskAttributesRunIfTypes
+                                                      defines the possible conditions
+                                                      for running a task in a GoCD
+                                                      pipeline job.
                                                     type: string
                                                   type: array
                                                 source:
+                                                  description: Source is the source
+                                                    path of the artifact to fetch.
                                                   type: string
                                                 stage:
+                                                  description: Stage is the name of
+                                                    the stage from which to fetch
+                                                    the artifact.
                                                   type: string
                                               required:
                                               - artifactId
@@ -883,18 +1421,36 @@ spec:
                                               - stage
                                               type: object
                                             nantAttributes:
+                                              description: NantAttributes contains
+                                                configuration for nant tasks.
                                               properties:
                                                 buildFile:
+                                                  description: BuildFile is the path
+                                                    to the Nant build file.
                                                   type: string
                                                 nantPath:
+                                                  description: NantPath specifies
+                                                    the path to the Nant executable.
                                                   type: string
                                                 runIf:
+                                                  description: RunIf specifies the
+                                                    conditions under which the nant
+                                                    task should run.
                                                   items:
+                                                    description: TaskAttributesRunIfTypes
+                                                      defines the possible conditions
+                                                      for running a task in a GoCD
+                                                      pipeline job.
                                                     type: string
                                                   type: array
                                                 target:
+                                                  description: Target is the Nant
+                                                    target to execute.
                                                   type: string
                                                 workingDirectory:
+                                                  description: WorkingDirectory specifies
+                                                    the directory in which to run
+                                                    the Nant task.
                                                   type: string
                                               required:
                                               - buildFile
@@ -904,8 +1460,13 @@ spec:
                                               - workingDirectory
                                               type: object
                                             pluggableAttributes:
+                                              description: PluggableAttributes contains
+                                                configuration for pluggable tasks.
                                               properties:
                                                 configuration:
+                                                  description: Configuration is an
+                                                    optional list of key-value pairs
+                                                    for additional plugin configuration.
                                                   items:
                                                     properties:
                                                       key:
@@ -918,17 +1479,32 @@ spec:
                                                     type: object
                                                   type: array
                                                 pluginConfiguration:
+                                                  description: PluginConfiguration
+                                                    contains the plugin configuration
+                                                    details.
                                                   properties:
                                                     id:
+                                                      description: ID is the identifier
+                                                        of the plugin.
                                                       type: string
                                                     version:
+                                                      description: Version specifies
+                                                        the version of the plugin
+                                                        to use.
                                                       type: string
                                                   required:
                                                   - id
                                                   - version
                                                   type: object
                                                 runIf:
+                                                  description: RunIf specifies the
+                                                    conditions under which the pluggable
+                                                    task should run.
                                                   items:
+                                                    description: TaskAttributesRunIfTypes
+                                                      defines the possible conditions
+                                                      for running a task in a GoCD
+                                                      pipeline job.
                                                     type: string
                                                   type: array
                                               required:
@@ -936,16 +1512,32 @@ spec:
                                               - runIf
                                               type: object
                                             rakeAttributes:
+                                              description: RakeAttributes contains
+                                                configuration for rake tasks.
                                               properties:
                                                 buildFile:
+                                                  description: BuildFile is the path
+                                                    to the Rake build file.
                                                   type: string
                                                 runIf:
+                                                  description: RunIf specifies the
+                                                    conditions under which the rake
+                                                    task should run.
                                                   items:
+                                                    description: TaskAttributesRunIfTypes
+                                                      defines the possible conditions
+                                                      for running a task in a GoCD
+                                                      pipeline job.
                                                     type: string
                                                   type: array
                                                 target:
+                                                  description: Target is the Rake
+                                                    target to execute.
                                                   type: string
                                                 workingDirectory:
+                                                  description: WorkingDirectory specifies
+                                                    the directory in which to run
+                                                    the Rake task.
                                                   type: string
                                               required:
                                               - buildFile
@@ -954,6 +1546,9 @@ spec:
                                               - workingDirectory
                                               type: object
                                             type:
+                                              description: |-
+                                                Type specifies the kind of task (e.g., exec, rake, fetch, ant, nant, pluggable_task).
+                                                Only the attributes corresponding to the selected type should be set; others must be nil.
                                               enum:
                                               - exec
                                               - rake
@@ -991,25 +1586,42 @@ spec:
                                             rule: 'self.type == ''pluggable_task''
                                               ? has(self.pluggableAttributes) : !has(self.pluggableAttributes)'
                                         runIf:
+                                          description: RunIf specifies the conditions
+                                            under which the task should run.
                                           items:
+                                            description: TaskAttributesRunIfTypes
+                                              defines the possible conditions for
+                                              running a task in a GoCD pipeline job.
                                             type: string
                                           type: array
                                         workingDirectory:
+                                          description: WorkingDirectory specifies
+                                            the directory in which to run the command.
                                           type: string
                                       required:
                                       - command
                                       - runIf
                                       type: object
                                     fetchAttributes:
+                                      description: FetchAttributes contains configuration
+                                        for fetch tasks.
                                       properties:
                                         artifactId:
+                                          description: ArtifactID is the identifier
+                                            of the artifact to fetch.
                                           type: string
                                         artifactOrigin:
+                                          description: ArtifactOrigin specifies the
+                                            origin of the artifact to fetch (e.g.,
+                                            gocd, external).
                                           enum:
                                           - gocd
                                           - external
                                           type: string
                                         configuration:
+                                          description: Configuration is an optional
+                                            list of key-value pairs for additional
+                                            configuration.
                                           items:
                                             properties:
                                               key:
@@ -1022,25 +1634,48 @@ spec:
                                             type: object
                                           type: array
                                         destination:
+                                          description: Destination is the destination
+                                            path where the artifact will be placed.
                                           type: string
                                         isSourceAFile:
+                                          description: IsSourceAFile indicates if
+                                            the source is a file.
                                           type: boolean
                                         job:
+                                          description: Job is the name of the job
+                                            from which to fetch the artifact.
                                           type: string
                                         onCancel:
-                                          description: nolint:staticcheck
+                                          description: OnCancel specifies a task to
+                                            execute if the main fetch task is canceled.
                                           properties:
                                             antAttributes:
+                                              description: AntAttributes contains
+                                                configuration for ant tasks.
                                               properties:
                                                 buildFile:
+                                                  description: BuildFile is the path
+                                                    to the Ant build file.
                                                   type: string
                                                 runIf:
+                                                  description: RunIf specifies the
+                                                    conditions under which the ant
+                                                    task should run.
                                                   items:
+                                                    description: TaskAttributesRunIfTypes
+                                                      defines the possible conditions
+                                                      for running a task in a GoCD
+                                                      pipeline job.
                                                     type: string
                                                   type: array
                                                 target:
+                                                  description: Target is the Ant target
+                                                    to execute.
                                                   type: string
                                                 workingDirectory:
+                                                  description: WorkingDirectory specifies
+                                                    the directory in which to run
+                                                    the Ant task.
                                                   type: string
                                               required:
                                               - buildFile
@@ -1049,33 +1684,59 @@ spec:
                                               - workingDirectory
                                               type: object
                                             execAttributes:
+                                              description: ExecAttributes contains
+                                                configuration for exec tasks.
                                               properties:
                                                 arguments:
+                                                  description: Arguments is a list
+                                                    of arguments to pass to the command.
                                                   items:
                                                     type: string
                                                   type: array
                                                 command:
+                                                  description: Command is the executable
+                                                    to run.
                                                   type: string
                                                 runIf:
+                                                  description: RunIf specifies the
+                                                    conditions under which the task
+                                                    should run.
                                                   items:
+                                                    description: TaskAttributesRunIfTypes
+                                                      defines the possible conditions
+                                                      for running a task in a GoCD
+                                                      pipeline job.
                                                     type: string
                                                   type: array
                                                 workingDirectory:
+                                                  description: WorkingDirectory specifies
+                                                    the directory in which to run
+                                                    the command.
                                                   type: string
                                               required:
                                               - command
                                               - runIf
                                               type: object
                                             fetchAttributes:
+                                              description: FetchAttributes contains
+                                                configuration for fetch tasks.
                                               properties:
                                                 artifactId:
+                                                  description: ArtifactID is the identifier
+                                                    of the artifact to fetch.
                                                   type: string
                                                 artifactOrigin:
+                                                  description: ArtifactOrigin specifies
+                                                    the origin of the artifact to
+                                                    fetch (e.g., gocd, external).
                                                   enum:
                                                   - gocd
                                                   - external
                                                   type: string
                                                 configuration:
+                                                  description: Configuration is an
+                                                    optional list of key-value pairs
+                                                    for additional configuration.
                                                   items:
                                                     properties:
                                                       key:
@@ -1088,20 +1749,43 @@ spec:
                                                     type: object
                                                   type: array
                                                 destination:
+                                                  description: Destination is the
+                                                    destination path where the artifact
+                                                    will be placed.
                                                   type: string
                                                 isSourceAFile:
+                                                  description: IsSourceAFile indicates
+                                                    if the source is a file.
                                                   type: boolean
                                                 job:
+                                                  description: Job is the name of
+                                                    the job from which to fetch the
+                                                    artifact.
                                                   type: string
                                                 pipeline:
+                                                  description: Pipeline is the name
+                                                    of the pipeline from which to
+                                                    fetch the artifact.
                                                   type: string
                                                 runIf:
+                                                  description: RunIf specifies the
+                                                    conditions under which the fetch
+                                                    task should run.
                                                   items:
+                                                    description: TaskAttributesRunIfTypes
+                                                      defines the possible conditions
+                                                      for running a task in a GoCD
+                                                      pipeline job.
                                                     type: string
                                                   type: array
                                                 source:
+                                                  description: Source is the source
+                                                    path of the artifact to fetch.
                                                   type: string
                                                 stage:
+                                                  description: Stage is the name of
+                                                    the stage from which to fetch
+                                                    the artifact.
                                                   type: string
                                               required:
                                               - artifactId
@@ -1115,18 +1799,36 @@ spec:
                                               - stage
                                               type: object
                                             nantAttributes:
+                                              description: NantAttributes contains
+                                                configuration for nant tasks.
                                               properties:
                                                 buildFile:
+                                                  description: BuildFile is the path
+                                                    to the Nant build file.
                                                   type: string
                                                 nantPath:
+                                                  description: NantPath specifies
+                                                    the path to the Nant executable.
                                                   type: string
                                                 runIf:
+                                                  description: RunIf specifies the
+                                                    conditions under which the nant
+                                                    task should run.
                                                   items:
+                                                    description: TaskAttributesRunIfTypes
+                                                      defines the possible conditions
+                                                      for running a task in a GoCD
+                                                      pipeline job.
                                                     type: string
                                                   type: array
                                                 target:
+                                                  description: Target is the Nant
+                                                    target to execute.
                                                   type: string
                                                 workingDirectory:
+                                                  description: WorkingDirectory specifies
+                                                    the directory in which to run
+                                                    the Nant task.
                                                   type: string
                                               required:
                                               - buildFile
@@ -1136,8 +1838,13 @@ spec:
                                               - workingDirectory
                                               type: object
                                             pluggableAttributes:
+                                              description: PluggableAttributes contains
+                                                configuration for pluggable tasks.
                                               properties:
                                                 configuration:
+                                                  description: Configuration is an
+                                                    optional list of key-value pairs
+                                                    for additional plugin configuration.
                                                   items:
                                                     properties:
                                                       key:
@@ -1150,17 +1857,32 @@ spec:
                                                     type: object
                                                   type: array
                                                 pluginConfiguration:
+                                                  description: PluginConfiguration
+                                                    contains the plugin configuration
+                                                    details.
                                                   properties:
                                                     id:
+                                                      description: ID is the identifier
+                                                        of the plugin.
                                                       type: string
                                                     version:
+                                                      description: Version specifies
+                                                        the version of the plugin
+                                                        to use.
                                                       type: string
                                                   required:
                                                   - id
                                                   - version
                                                   type: object
                                                 runIf:
+                                                  description: RunIf specifies the
+                                                    conditions under which the pluggable
+                                                    task should run.
                                                   items:
+                                                    description: TaskAttributesRunIfTypes
+                                                      defines the possible conditions
+                                                      for running a task in a GoCD
+                                                      pipeline job.
                                                     type: string
                                                   type: array
                                               required:
@@ -1168,16 +1890,32 @@ spec:
                                               - runIf
                                               type: object
                                             rakeAttributes:
+                                              description: RakeAttributes contains
+                                                configuration for rake tasks.
                                               properties:
                                                 buildFile:
+                                                  description: BuildFile is the path
+                                                    to the Rake build file.
                                                   type: string
                                                 runIf:
+                                                  description: RunIf specifies the
+                                                    conditions under which the rake
+                                                    task should run.
                                                   items:
+                                                    description: TaskAttributesRunIfTypes
+                                                      defines the possible conditions
+                                                      for running a task in a GoCD
+                                                      pipeline job.
                                                     type: string
                                                   type: array
                                                 target:
+                                                  description: Target is the Rake
+                                                    target to execute.
                                                   type: string
                                                 workingDirectory:
+                                                  description: WorkingDirectory specifies
+                                                    the directory in which to run
+                                                    the Rake task.
                                                   type: string
                                               required:
                                               - buildFile
@@ -1186,6 +1924,9 @@ spec:
                                               - workingDirectory
                                               type: object
                                             type:
+                                              description: |-
+                                                Type specifies the kind of task (e.g., exec, rake, fetch, ant, nant, pluggable_task).
+                                                Only the attributes corresponding to the selected type should be set; others must be nil.
                                               enum:
                                               - exec
                                               - rake
@@ -1223,14 +1964,25 @@ spec:
                                             rule: 'self.type == ''pluggable_task''
                                               ? has(self.pluggableAttributes) : !has(self.pluggableAttributes)'
                                         pipeline:
+                                          description: Pipeline is the name of the
+                                            pipeline from which to fetch the artifact.
                                           type: string
                                         runIf:
+                                          description: RunIf specifies the conditions
+                                            under which the fetch task should run.
                                           items:
+                                            description: TaskAttributesRunIfTypes
+                                              defines the possible conditions for
+                                              running a task in a GoCD pipeline job.
                                             type: string
                                           type: array
                                         source:
+                                          description: Source is the source path of
+                                            the artifact to fetch.
                                           type: string
                                         stage:
+                                          description: Stage is the name of the stage
+                                            from which to fetch the artifact.
                                           type: string
                                       required:
                                       - artifactId
@@ -1244,25 +1996,48 @@ spec:
                                       - stage
                                       type: object
                                     nantAttributes:
+                                      description: NantAttributes contains configuration
+                                        for nant tasks.
                                       properties:
                                         buildFile:
+                                          description: BuildFile is the path to the
+                                            Nant build file.
                                           type: string
                                         nantPath:
+                                          description: NantPath specifies the path
+                                            to the Nant executable.
                                           type: string
                                         onCancel:
-                                          description: nolint:staticcheck
+                                          description: OnCancel specifies a task to
+                                            execute if the main nant task is canceled.
                                           properties:
                                             antAttributes:
+                                              description: AntAttributes contains
+                                                configuration for ant tasks.
                                               properties:
                                                 buildFile:
+                                                  description: BuildFile is the path
+                                                    to the Ant build file.
                                                   type: string
                                                 runIf:
+                                                  description: RunIf specifies the
+                                                    conditions under which the ant
+                                                    task should run.
                                                   items:
+                                                    description: TaskAttributesRunIfTypes
+                                                      defines the possible conditions
+                                                      for running a task in a GoCD
+                                                      pipeline job.
                                                     type: string
                                                   type: array
                                                 target:
+                                                  description: Target is the Ant target
+                                                    to execute.
                                                   type: string
                                                 workingDirectory:
+                                                  description: WorkingDirectory specifies
+                                                    the directory in which to run
+                                                    the Ant task.
                                                   type: string
                                               required:
                                               - buildFile
@@ -1271,33 +2046,59 @@ spec:
                                               - workingDirectory
                                               type: object
                                             execAttributes:
+                                              description: ExecAttributes contains
+                                                configuration for exec tasks.
                                               properties:
                                                 arguments:
+                                                  description: Arguments is a list
+                                                    of arguments to pass to the command.
                                                   items:
                                                     type: string
                                                   type: array
                                                 command:
+                                                  description: Command is the executable
+                                                    to run.
                                                   type: string
                                                 runIf:
+                                                  description: RunIf specifies the
+                                                    conditions under which the task
+                                                    should run.
                                                   items:
+                                                    description: TaskAttributesRunIfTypes
+                                                      defines the possible conditions
+                                                      for running a task in a GoCD
+                                                      pipeline job.
                                                     type: string
                                                   type: array
                                                 workingDirectory:
+                                                  description: WorkingDirectory specifies
+                                                    the directory in which to run
+                                                    the command.
                                                   type: string
                                               required:
                                               - command
                                               - runIf
                                               type: object
                                             fetchAttributes:
+                                              description: FetchAttributes contains
+                                                configuration for fetch tasks.
                                               properties:
                                                 artifactId:
+                                                  description: ArtifactID is the identifier
+                                                    of the artifact to fetch.
                                                   type: string
                                                 artifactOrigin:
+                                                  description: ArtifactOrigin specifies
+                                                    the origin of the artifact to
+                                                    fetch (e.g., gocd, external).
                                                   enum:
                                                   - gocd
                                                   - external
                                                   type: string
                                                 configuration:
+                                                  description: Configuration is an
+                                                    optional list of key-value pairs
+                                                    for additional configuration.
                                                   items:
                                                     properties:
                                                       key:
@@ -1310,20 +2111,43 @@ spec:
                                                     type: object
                                                   type: array
                                                 destination:
+                                                  description: Destination is the
+                                                    destination path where the artifact
+                                                    will be placed.
                                                   type: string
                                                 isSourceAFile:
+                                                  description: IsSourceAFile indicates
+                                                    if the source is a file.
                                                   type: boolean
                                                 job:
+                                                  description: Job is the name of
+                                                    the job from which to fetch the
+                                                    artifact.
                                                   type: string
                                                 pipeline:
+                                                  description: Pipeline is the name
+                                                    of the pipeline from which to
+                                                    fetch the artifact.
                                                   type: string
                                                 runIf:
+                                                  description: RunIf specifies the
+                                                    conditions under which the fetch
+                                                    task should run.
                                                   items:
+                                                    description: TaskAttributesRunIfTypes
+                                                      defines the possible conditions
+                                                      for running a task in a GoCD
+                                                      pipeline job.
                                                     type: string
                                                   type: array
                                                 source:
+                                                  description: Source is the source
+                                                    path of the artifact to fetch.
                                                   type: string
                                                 stage:
+                                                  description: Stage is the name of
+                                                    the stage from which to fetch
+                                                    the artifact.
                                                   type: string
                                               required:
                                               - artifactId
@@ -1337,18 +2161,36 @@ spec:
                                               - stage
                                               type: object
                                             nantAttributes:
+                                              description: NantAttributes contains
+                                                configuration for nant tasks.
                                               properties:
                                                 buildFile:
+                                                  description: BuildFile is the path
+                                                    to the Nant build file.
                                                   type: string
                                                 nantPath:
+                                                  description: NantPath specifies
+                                                    the path to the Nant executable.
                                                   type: string
                                                 runIf:
+                                                  description: RunIf specifies the
+                                                    conditions under which the nant
+                                                    task should run.
                                                   items:
+                                                    description: TaskAttributesRunIfTypes
+                                                      defines the possible conditions
+                                                      for running a task in a GoCD
+                                                      pipeline job.
                                                     type: string
                                                   type: array
                                                 target:
+                                                  description: Target is the Nant
+                                                    target to execute.
                                                   type: string
                                                 workingDirectory:
+                                                  description: WorkingDirectory specifies
+                                                    the directory in which to run
+                                                    the Nant task.
                                                   type: string
                                               required:
                                               - buildFile
@@ -1358,8 +2200,13 @@ spec:
                                               - workingDirectory
                                               type: object
                                             pluggableAttributes:
+                                              description: PluggableAttributes contains
+                                                configuration for pluggable tasks.
                                               properties:
                                                 configuration:
+                                                  description: Configuration is an
+                                                    optional list of key-value pairs
+                                                    for additional plugin configuration.
                                                   items:
                                                     properties:
                                                       key:
@@ -1372,17 +2219,32 @@ spec:
                                                     type: object
                                                   type: array
                                                 pluginConfiguration:
+                                                  description: PluginConfiguration
+                                                    contains the plugin configuration
+                                                    details.
                                                   properties:
                                                     id:
+                                                      description: ID is the identifier
+                                                        of the plugin.
                                                       type: string
                                                     version:
+                                                      description: Version specifies
+                                                        the version of the plugin
+                                                        to use.
                                                       type: string
                                                   required:
                                                   - id
                                                   - version
                                                   type: object
                                                 runIf:
+                                                  description: RunIf specifies the
+                                                    conditions under which the pluggable
+                                                    task should run.
                                                   items:
+                                                    description: TaskAttributesRunIfTypes
+                                                      defines the possible conditions
+                                                      for running a task in a GoCD
+                                                      pipeline job.
                                                     type: string
                                                   type: array
                                               required:
@@ -1390,16 +2252,32 @@ spec:
                                               - runIf
                                               type: object
                                             rakeAttributes:
+                                              description: RakeAttributes contains
+                                                configuration for rake tasks.
                                               properties:
                                                 buildFile:
+                                                  description: BuildFile is the path
+                                                    to the Rake build file.
                                                   type: string
                                                 runIf:
+                                                  description: RunIf specifies the
+                                                    conditions under which the rake
+                                                    task should run.
                                                   items:
+                                                    description: TaskAttributesRunIfTypes
+                                                      defines the possible conditions
+                                                      for running a task in a GoCD
+                                                      pipeline job.
                                                     type: string
                                                   type: array
                                                 target:
+                                                  description: Target is the Rake
+                                                    target to execute.
                                                   type: string
                                                 workingDirectory:
+                                                  description: WorkingDirectory specifies
+                                                    the directory in which to run
+                                                    the Rake task.
                                                   type: string
                                               required:
                                               - buildFile
@@ -1408,6 +2286,9 @@ spec:
                                               - workingDirectory
                                               type: object
                                             type:
+                                              description: |-
+                                                Type specifies the kind of task (e.g., exec, rake, fetch, ant, nant, pluggable_task).
+                                                Only the attributes corresponding to the selected type should be set; others must be nil.
                                               enum:
                                               - exec
                                               - rake
@@ -1445,12 +2326,22 @@ spec:
                                             rule: 'self.type == ''pluggable_task''
                                               ? has(self.pluggableAttributes) : !has(self.pluggableAttributes)'
                                         runIf:
+                                          description: RunIf specifies the conditions
+                                            under which the nant task should run.
                                           items:
+                                            description: TaskAttributesRunIfTypes
+                                              defines the possible conditions for
+                                              running a task in a GoCD pipeline job.
                                             type: string
                                           type: array
                                         target:
+                                          description: Target is the Nant target to
+                                            execute.
                                           type: string
                                         workingDirectory:
+                                          description: WorkingDirectory specifies
+                                            the directory in which to run the Nant
+                                            task.
                                           type: string
                                       required:
                                       - buildFile
@@ -1460,8 +2351,13 @@ spec:
                                       - workingDirectory
                                       type: object
                                     pluggableAttributes:
+                                      description: PluggableAttributes contains configuration
+                                        for pluggable tasks.
                                       properties:
                                         configuration:
+                                          description: Configuration is an optional
+                                            list of key-value pairs for additional
+                                            plugin configuration.
                                           items:
                                             properties:
                                               key:
@@ -1474,19 +2370,37 @@ spec:
                                             type: object
                                           type: array
                                         onCancel:
-                                          description: nolint:staticcheck
+                                          description: OnCancel specifies a task to
+                                            execute if the main pluggable task is
+                                            canceled.
                                           properties:
                                             antAttributes:
+                                              description: AntAttributes contains
+                                                configuration for ant tasks.
                                               properties:
                                                 buildFile:
+                                                  description: BuildFile is the path
+                                                    to the Ant build file.
                                                   type: string
                                                 runIf:
+                                                  description: RunIf specifies the
+                                                    conditions under which the ant
+                                                    task should run.
                                                   items:
+                                                    description: TaskAttributesRunIfTypes
+                                                      defines the possible conditions
+                                                      for running a task in a GoCD
+                                                      pipeline job.
                                                     type: string
                                                   type: array
                                                 target:
+                                                  description: Target is the Ant target
+                                                    to execute.
                                                   type: string
                                                 workingDirectory:
+                                                  description: WorkingDirectory specifies
+                                                    the directory in which to run
+                                                    the Ant task.
                                                   type: string
                                               required:
                                               - buildFile
@@ -1495,33 +2409,59 @@ spec:
                                               - workingDirectory
                                               type: object
                                             execAttributes:
+                                              description: ExecAttributes contains
+                                                configuration for exec tasks.
                                               properties:
                                                 arguments:
+                                                  description: Arguments is a list
+                                                    of arguments to pass to the command.
                                                   items:
                                                     type: string
                                                   type: array
                                                 command:
+                                                  description: Command is the executable
+                                                    to run.
                                                   type: string
                                                 runIf:
+                                                  description: RunIf specifies the
+                                                    conditions under which the task
+                                                    should run.
                                                   items:
+                                                    description: TaskAttributesRunIfTypes
+                                                      defines the possible conditions
+                                                      for running a task in a GoCD
+                                                      pipeline job.
                                                     type: string
                                                   type: array
                                                 workingDirectory:
+                                                  description: WorkingDirectory specifies
+                                                    the directory in which to run
+                                                    the command.
                                                   type: string
                                               required:
                                               - command
                                               - runIf
                                               type: object
                                             fetchAttributes:
+                                              description: FetchAttributes contains
+                                                configuration for fetch tasks.
                                               properties:
                                                 artifactId:
+                                                  description: ArtifactID is the identifier
+                                                    of the artifact to fetch.
                                                   type: string
                                                 artifactOrigin:
+                                                  description: ArtifactOrigin specifies
+                                                    the origin of the artifact to
+                                                    fetch (e.g., gocd, external).
                                                   enum:
                                                   - gocd
                                                   - external
                                                   type: string
                                                 configuration:
+                                                  description: Configuration is an
+                                                    optional list of key-value pairs
+                                                    for additional configuration.
                                                   items:
                                                     properties:
                                                       key:
@@ -1534,20 +2474,43 @@ spec:
                                                     type: object
                                                   type: array
                                                 destination:
+                                                  description: Destination is the
+                                                    destination path where the artifact
+                                                    will be placed.
                                                   type: string
                                                 isSourceAFile:
+                                                  description: IsSourceAFile indicates
+                                                    if the source is a file.
                                                   type: boolean
                                                 job:
+                                                  description: Job is the name of
+                                                    the job from which to fetch the
+                                                    artifact.
                                                   type: string
                                                 pipeline:
+                                                  description: Pipeline is the name
+                                                    of the pipeline from which to
+                                                    fetch the artifact.
                                                   type: string
                                                 runIf:
+                                                  description: RunIf specifies the
+                                                    conditions under which the fetch
+                                                    task should run.
                                                   items:
+                                                    description: TaskAttributesRunIfTypes
+                                                      defines the possible conditions
+                                                      for running a task in a GoCD
+                                                      pipeline job.
                                                     type: string
                                                   type: array
                                                 source:
+                                                  description: Source is the source
+                                                    path of the artifact to fetch.
                                                   type: string
                                                 stage:
+                                                  description: Stage is the name of
+                                                    the stage from which to fetch
+                                                    the artifact.
                                                   type: string
                                               required:
                                               - artifactId
@@ -1561,18 +2524,36 @@ spec:
                                               - stage
                                               type: object
                                             nantAttributes:
+                                              description: NantAttributes contains
+                                                configuration for nant tasks.
                                               properties:
                                                 buildFile:
+                                                  description: BuildFile is the path
+                                                    to the Nant build file.
                                                   type: string
                                                 nantPath:
+                                                  description: NantPath specifies
+                                                    the path to the Nant executable.
                                                   type: string
                                                 runIf:
+                                                  description: RunIf specifies the
+                                                    conditions under which the nant
+                                                    task should run.
                                                   items:
+                                                    description: TaskAttributesRunIfTypes
+                                                      defines the possible conditions
+                                                      for running a task in a GoCD
+                                                      pipeline job.
                                                     type: string
                                                   type: array
                                                 target:
+                                                  description: Target is the Nant
+                                                    target to execute.
                                                   type: string
                                                 workingDirectory:
+                                                  description: WorkingDirectory specifies
+                                                    the directory in which to run
+                                                    the Nant task.
                                                   type: string
                                               required:
                                               - buildFile
@@ -1582,8 +2563,13 @@ spec:
                                               - workingDirectory
                                               type: object
                                             pluggableAttributes:
+                                              description: PluggableAttributes contains
+                                                configuration for pluggable tasks.
                                               properties:
                                                 configuration:
+                                                  description: Configuration is an
+                                                    optional list of key-value pairs
+                                                    for additional plugin configuration.
                                                   items:
                                                     properties:
                                                       key:
@@ -1596,17 +2582,32 @@ spec:
                                                     type: object
                                                   type: array
                                                 pluginConfiguration:
+                                                  description: PluginConfiguration
+                                                    contains the plugin configuration
+                                                    details.
                                                   properties:
                                                     id:
+                                                      description: ID is the identifier
+                                                        of the plugin.
                                                       type: string
                                                     version:
+                                                      description: Version specifies
+                                                        the version of the plugin
+                                                        to use.
                                                       type: string
                                                   required:
                                                   - id
                                                   - version
                                                   type: object
                                                 runIf:
+                                                  description: RunIf specifies the
+                                                    conditions under which the pluggable
+                                                    task should run.
                                                   items:
+                                                    description: TaskAttributesRunIfTypes
+                                                      defines the possible conditions
+                                                      for running a task in a GoCD
+                                                      pipeline job.
                                                     type: string
                                                   type: array
                                               required:
@@ -1614,16 +2615,32 @@ spec:
                                               - runIf
                                               type: object
                                             rakeAttributes:
+                                              description: RakeAttributes contains
+                                                configuration for rake tasks.
                                               properties:
                                                 buildFile:
+                                                  description: BuildFile is the path
+                                                    to the Rake build file.
                                                   type: string
                                                 runIf:
+                                                  description: RunIf specifies the
+                                                    conditions under which the rake
+                                                    task should run.
                                                   items:
+                                                    description: TaskAttributesRunIfTypes
+                                                      defines the possible conditions
+                                                      for running a task in a GoCD
+                                                      pipeline job.
                                                     type: string
                                                   type: array
                                                 target:
+                                                  description: Target is the Rake
+                                                    target to execute.
                                                   type: string
                                                 workingDirectory:
+                                                  description: WorkingDirectory specifies
+                                                    the directory in which to run
+                                                    the Rake task.
                                                   type: string
                                               required:
                                               - buildFile
@@ -1632,6 +2649,9 @@ spec:
                                               - workingDirectory
                                               type: object
                                             type:
+                                              description: |-
+                                                Type specifies the kind of task (e.g., exec, rake, fetch, ant, nant, pluggable_task).
+                                                Only the attributes corresponding to the selected type should be set; others must be nil.
                                               enum:
                                               - exec
                                               - rake
@@ -1669,17 +2689,29 @@ spec:
                                             rule: 'self.type == ''pluggable_task''
                                               ? has(self.pluggableAttributes) : !has(self.pluggableAttributes)'
                                         pluginConfiguration:
+                                          description: PluginConfiguration contains
+                                            the plugin configuration details.
                                           properties:
                                             id:
+                                              description: ID is the identifier of
+                                                the plugin.
                                               type: string
                                             version:
+                                              description: Version specifies the version
+                                                of the plugin to use.
                                               type: string
                                           required:
                                           - id
                                           - version
                                           type: object
                                         runIf:
+                                          description: RunIf specifies the conditions
+                                            under which the pluggable task should
+                                            run.
                                           items:
+                                            description: TaskAttributesRunIfTypes
+                                              defines the possible conditions for
+                                              running a task in a GoCD pipeline job.
                                             type: string
                                           type: array
                                       required:
@@ -1687,23 +2719,44 @@ spec:
                                       - runIf
                                       type: object
                                     rakeAttributes:
+                                      description: RakeAttributes contains configuration
+                                        for rake tasks.
                                       properties:
                                         buildFile:
+                                          description: BuildFile is the path to the
+                                            Rake build file.
                                           type: string
                                         onCancel:
-                                          description: nolint:staticcheck
+                                          description: OnCancel specifies a task to
+                                            execute if the main rake task is canceled.
                                           properties:
                                             antAttributes:
+                                              description: AntAttributes contains
+                                                configuration for ant tasks.
                                               properties:
                                                 buildFile:
+                                                  description: BuildFile is the path
+                                                    to the Ant build file.
                                                   type: string
                                                 runIf:
+                                                  description: RunIf specifies the
+                                                    conditions under which the ant
+                                                    task should run.
                                                   items:
+                                                    description: TaskAttributesRunIfTypes
+                                                      defines the possible conditions
+                                                      for running a task in a GoCD
+                                                      pipeline job.
                                                     type: string
                                                   type: array
                                                 target:
+                                                  description: Target is the Ant target
+                                                    to execute.
                                                   type: string
                                                 workingDirectory:
+                                                  description: WorkingDirectory specifies
+                                                    the directory in which to run
+                                                    the Ant task.
                                                   type: string
                                               required:
                                               - buildFile
@@ -1712,33 +2765,59 @@ spec:
                                               - workingDirectory
                                               type: object
                                             execAttributes:
+                                              description: ExecAttributes contains
+                                                configuration for exec tasks.
                                               properties:
                                                 arguments:
+                                                  description: Arguments is a list
+                                                    of arguments to pass to the command.
                                                   items:
                                                     type: string
                                                   type: array
                                                 command:
+                                                  description: Command is the executable
+                                                    to run.
                                                   type: string
                                                 runIf:
+                                                  description: RunIf specifies the
+                                                    conditions under which the task
+                                                    should run.
                                                   items:
+                                                    description: TaskAttributesRunIfTypes
+                                                      defines the possible conditions
+                                                      for running a task in a GoCD
+                                                      pipeline job.
                                                     type: string
                                                   type: array
                                                 workingDirectory:
+                                                  description: WorkingDirectory specifies
+                                                    the directory in which to run
+                                                    the command.
                                                   type: string
                                               required:
                                               - command
                                               - runIf
                                               type: object
                                             fetchAttributes:
+                                              description: FetchAttributes contains
+                                                configuration for fetch tasks.
                                               properties:
                                                 artifactId:
+                                                  description: ArtifactID is the identifier
+                                                    of the artifact to fetch.
                                                   type: string
                                                 artifactOrigin:
+                                                  description: ArtifactOrigin specifies
+                                                    the origin of the artifact to
+                                                    fetch (e.g., gocd, external).
                                                   enum:
                                                   - gocd
                                                   - external
                                                   type: string
                                                 configuration:
+                                                  description: Configuration is an
+                                                    optional list of key-value pairs
+                                                    for additional configuration.
                                                   items:
                                                     properties:
                                                       key:
@@ -1751,20 +2830,43 @@ spec:
                                                     type: object
                                                   type: array
                                                 destination:
+                                                  description: Destination is the
+                                                    destination path where the artifact
+                                                    will be placed.
                                                   type: string
                                                 isSourceAFile:
+                                                  description: IsSourceAFile indicates
+                                                    if the source is a file.
                                                   type: boolean
                                                 job:
+                                                  description: Job is the name of
+                                                    the job from which to fetch the
+                                                    artifact.
                                                   type: string
                                                 pipeline:
+                                                  description: Pipeline is the name
+                                                    of the pipeline from which to
+                                                    fetch the artifact.
                                                   type: string
                                                 runIf:
+                                                  description: RunIf specifies the
+                                                    conditions under which the fetch
+                                                    task should run.
                                                   items:
+                                                    description: TaskAttributesRunIfTypes
+                                                      defines the possible conditions
+                                                      for running a task in a GoCD
+                                                      pipeline job.
                                                     type: string
                                                   type: array
                                                 source:
+                                                  description: Source is the source
+                                                    path of the artifact to fetch.
                                                   type: string
                                                 stage:
+                                                  description: Stage is the name of
+                                                    the stage from which to fetch
+                                                    the artifact.
                                                   type: string
                                               required:
                                               - artifactId
@@ -1778,18 +2880,36 @@ spec:
                                               - stage
                                               type: object
                                             nantAttributes:
+                                              description: NantAttributes contains
+                                                configuration for nant tasks.
                                               properties:
                                                 buildFile:
+                                                  description: BuildFile is the path
+                                                    to the Nant build file.
                                                   type: string
                                                 nantPath:
+                                                  description: NantPath specifies
+                                                    the path to the Nant executable.
                                                   type: string
                                                 runIf:
+                                                  description: RunIf specifies the
+                                                    conditions under which the nant
+                                                    task should run.
                                                   items:
+                                                    description: TaskAttributesRunIfTypes
+                                                      defines the possible conditions
+                                                      for running a task in a GoCD
+                                                      pipeline job.
                                                     type: string
                                                   type: array
                                                 target:
+                                                  description: Target is the Nant
+                                                    target to execute.
                                                   type: string
                                                 workingDirectory:
+                                                  description: WorkingDirectory specifies
+                                                    the directory in which to run
+                                                    the Nant task.
                                                   type: string
                                               required:
                                               - buildFile
@@ -1799,8 +2919,13 @@ spec:
                                               - workingDirectory
                                               type: object
                                             pluggableAttributes:
+                                              description: PluggableAttributes contains
+                                                configuration for pluggable tasks.
                                               properties:
                                                 configuration:
+                                                  description: Configuration is an
+                                                    optional list of key-value pairs
+                                                    for additional plugin configuration.
                                                   items:
                                                     properties:
                                                       key:
@@ -1813,17 +2938,32 @@ spec:
                                                     type: object
                                                   type: array
                                                 pluginConfiguration:
+                                                  description: PluginConfiguration
+                                                    contains the plugin configuration
+                                                    details.
                                                   properties:
                                                     id:
+                                                      description: ID is the identifier
+                                                        of the plugin.
                                                       type: string
                                                     version:
+                                                      description: Version specifies
+                                                        the version of the plugin
+                                                        to use.
                                                       type: string
                                                   required:
                                                   - id
                                                   - version
                                                   type: object
                                                 runIf:
+                                                  description: RunIf specifies the
+                                                    conditions under which the pluggable
+                                                    task should run.
                                                   items:
+                                                    description: TaskAttributesRunIfTypes
+                                                      defines the possible conditions
+                                                      for running a task in a GoCD
+                                                      pipeline job.
                                                     type: string
                                                   type: array
                                               required:
@@ -1831,16 +2971,32 @@ spec:
                                               - runIf
                                               type: object
                                             rakeAttributes:
+                                              description: RakeAttributes contains
+                                                configuration for rake tasks.
                                               properties:
                                                 buildFile:
+                                                  description: BuildFile is the path
+                                                    to the Rake build file.
                                                   type: string
                                                 runIf:
+                                                  description: RunIf specifies the
+                                                    conditions under which the rake
+                                                    task should run.
                                                   items:
+                                                    description: TaskAttributesRunIfTypes
+                                                      defines the possible conditions
+                                                      for running a task in a GoCD
+                                                      pipeline job.
                                                     type: string
                                                   type: array
                                                 target:
+                                                  description: Target is the Rake
+                                                    target to execute.
                                                   type: string
                                                 workingDirectory:
+                                                  description: WorkingDirectory specifies
+                                                    the directory in which to run
+                                                    the Rake task.
                                                   type: string
                                               required:
                                               - buildFile
@@ -1849,6 +3005,9 @@ spec:
                                               - workingDirectory
                                               type: object
                                             type:
+                                              description: |-
+                                                Type specifies the kind of task (e.g., exec, rake, fetch, ant, nant, pluggable_task).
+                                                Only the attributes corresponding to the selected type should be set; others must be nil.
                                               enum:
                                               - exec
                                               - rake
@@ -1886,12 +3045,22 @@ spec:
                                             rule: 'self.type == ''pluggable_task''
                                               ? has(self.pluggableAttributes) : !has(self.pluggableAttributes)'
                                         runIf:
+                                          description: RunIf specifies the conditions
+                                            under which the rake task should run.
                                           items:
+                                            description: TaskAttributesRunIfTypes
+                                              defines the possible conditions for
+                                              running a task in a GoCD pipeline job.
                                             type: string
                                           type: array
                                         target:
+                                          description: Target is the Rake target to
+                                            execute.
                                           type: string
                                         workingDirectory:
+                                          description: WorkingDirectory specifies
+                                            the directory in which to run the Rake
+                                            task.
                                           type: string
                                       required:
                                       - buildFile
@@ -1900,6 +3069,9 @@ spec:
                                       - workingDirectory
                                       type: object
                                     type:
+                                      description: |-
+                                        Type specifies the kind of task (e.g., exec, rake, fetch, ant, nant, pluggable_task).
+                                        Only the attributes corresponding to the selected type should be set; others must be nil.
                                       enum:
                                       - exec
                                       - rake
@@ -1943,6 +3115,8 @@ spec:
                                 - type: integer
                                 - type: string
                                 default: never
+                                description: Timeout specifies the job timeout, as
+                                  an integer or string.
                                 x-kubernetes-int-or-string: true
                             required:
                             - environmentVariables
@@ -1952,8 +3126,11 @@ spec:
                           maxItems: 50
                           type: array
                         name:
+                          description: Name is the identifier for the stage.
                           type: string
                         neverCleanupArtifacts:
+                          description: NeverCleanupArtifacts indicates if artifacts
+                            should never be cleaned up for this stage.
                           type: boolean
                       required:
                       - cleanWorkingDir
@@ -1967,30 +3144,48 @@ spec:
                     minItems: 1
                     type: array
                   template:
+                    description: Template is the name of the pipeline template to
+                      use.
                     type: string
                   timer:
+                    description: Timer specifies the cron time when the pipeline should
+                      be triggered.
                     properties:
                       onlyOnChanges:
+                        description: OnlyOnChanges indicates whether the pipeline
+                          should only be triggered when there are material changes.
                         type: boolean
                       spec:
+                        description: Spec specifies the cron-like schedule for triggering
+                          the pipeline.
                         type: string
                     required:
                     - onlyOnChanges
                     - spec
                     type: object
                   trackingTool:
+                    description: TrackingTool specifies the tracking tool configuration
+                      for the pipeline.
                     properties:
                       attributes:
+                        description: Attributes contains the configuration details
+                          specific to the tracking tool.
                         properties:
                           regex:
+                            description: Regex defines the regular expression used
+                              to identify references in commit messages.
                             type: string
                           urlPattern:
+                            description: URLPattern specifies the URL pattern for
+                              linking to issues or tickets.
                             type: string
                         required:
                         - regex
                         - urlPattern
                         type: object
                       type:
+                        description: Type specifies the kind of tracking tool (e.g.,
+                          JIRA, Mingle).
                         type: string
                     required:
                     - attributes

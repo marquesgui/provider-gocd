@@ -1,5 +1,9 @@
 package v1alpha1
 
+import (
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+)
+
 type KeyValue struct {
 	// +kubebuilder:validation:Required
 	Key string `json:"key"`
@@ -38,11 +42,18 @@ type EnvironmentVariable struct { //nolint:recvcheck
 	// +kubebuilder:validation:Optional
 	Value string `json:"value,omitempty"`
 	// +kubebuilder:validation:Optional
-	EncryptedValue string `json:"encryptedValue,omitempty"`
-	// +kubebuilder:validation:Optional
-	Secure bool `json:"secure,omitempty"`
+	ValueFrom *EnvVarSource `json:"valueFrom,omitempty"`
 }
 
-func SortEnvironmentVariable(a, b EnvironmentVariable) bool {
-	return a.Name < b.Name
+type EnvVarSource struct {
+	// +kubebuilder:validation:Optional
+	ConfigMapKeyRef *ConfigMapKeySelector `json:"configMapKeyRef,omitempty"`
+	// +kubebuilder:validation:Optional
+	SecretKeyRef *xpv1.SecretKeySelector `json:"secretKeyRef,omitempty"`
+}
+
+type ConfigMapKeySelector struct {
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+	Key       string `json:"key"`
 }

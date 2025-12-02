@@ -21,26 +21,18 @@ import (
 	"encoding/json"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/feature"
 	"github.com/marquesgui/provider-gocd/pkg/gocd"
 
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/pkg/connection"
-	"github.com/crossplane/crossplane-runtime/pkg/controller"
-	"github.com/crossplane/crossplane-runtime/pkg/event"
-	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/statemetrics"
 
 	"github.com/marquesgui/provider-gocd/apis/config/v1alpha1"
 	apisv1alpha1 "github.com/marquesgui/provider-gocd/apis/v1alpha1"
-	"github.com/marquesgui/provider-gocd/internal/features"
 )
 
 const (
@@ -67,55 +59,6 @@ var newService = func(creds []byte) (any, error) {
 		return nil, errors.Wrap(err, "cannot create new GoCD client")
 	}
 	return c.PipelineConfigs(), nil
-}
-
-// Setup adds a controller that reconciles PipelineConfig managed resources.
-func Setup(mgr ctrl.Manager, o controller.Options) error {
-	name := managed.ControllerName(v1alpha1.PipelineConfigGroupKind)
-
-	cps := []managed.ConnectionPublisher{managed.NewAPISecretPublisher(mgr.GetClient(), mgr.GetScheme())}
-	if o.Features.Enabled(features.EnableAlphaExternalSecretStores) {
-		cps = append(cps, connection.NewDetailsManager(mgr.GetClient(), apisv1alpha1.StoreConfigGroupVersionKind))
-	}
-
-	opts := []managed.ReconcilerOption{
-		managed.WithExternalConnecter(&connector{
-			kube:         mgr.GetClient(),
-			usage:        resource.NewProviderConfigUsageTracker(mgr.GetClient(), &apisv1alpha1.ProviderConfigUsage{}),
-			newServiceFn: newService,
-		}),
-		managed.WithLogger(o.Logger.WithValues("controller", name)),
-		managed.WithPollInterval(o.PollInterval),
-		managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
-		managed.WithConnectionPublishers(cps...),
-		managed.WithManagementPolicies(),
-	}
-
-	if o.Features.Enabled(feature.EnableAlphaChangeLogs) {
-		opts = append(opts, managed.WithChangeLogger(o.ChangeLogOptions.ChangeLogger))
-	}
-
-	if o.MetricOptions != nil {
-		opts = append(opts, managed.WithMetricRecorder(o.MetricOptions.MRMetrics))
-	}
-
-	if o.MetricOptions != nil && o.MetricOptions.MRStateMetrics != nil {
-		stateMetricsRecorder := statemetrics.NewMRStateRecorder(
-			mgr.GetClient(), o.Logger, o.MetricOptions.MRStateMetrics, &v1alpha1.PipelineConfigList{}, o.MetricOptions.PollStateMetricInterval,
-		)
-		if err := mgr.Add(stateMetricsRecorder); err != nil {
-			return errors.Wrap(err, "cannot register MR state metrics recorder for kind v1alpha1.PipelineConfigList")
-		}
-	}
-
-	r := managed.NewReconciler(mgr, resource.ManagedKind(v1alpha1.PipelineConfigGroupVersionKind), opts...)
-
-	return ctrl.NewControllerManagedBy(mgr).
-		Named(name).
-		WithOptions(o.ForControllerRuntime()).
-		WithEventFilter(resource.DesiredStateChanged()).
-		For(&v1alpha1.PipelineConfig{}).
-		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
 }
 
 // A connector is expected to produce an ExternalClient when its Connect method
@@ -161,7 +104,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	if !ok {
 		return nil, errors.New("returned service does not implement gocd.PipelineConfigsService")
 	}
-	return &external{service: s}, nil
+	return &external{service: s, kube: c.kube}, nil
 }
 
 // An ExternalClient observes, then either creates, updates, or deletes an
@@ -170,6 +113,8 @@ type external struct {
 	// A 'client' used to connect to the external resource API. In practice this
 	// would be something like an AWS SDK client.
 	service gocd.PipelineConfigsService
+	// Kubernetes client
+	kube client.Client
 }
 
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
@@ -192,7 +137,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	}
 
 	keepETag(pc, etag)
-	upToDate := isUpToDate(pc.Spec.ForProvider, got)
+	upToDate := isUpToDate(ctx, c.kube, pc.Spec.ForProvider, got)
 
 	if upToDate {
 		pc.SetConditions(xpv1.Available())
@@ -213,7 +158,11 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalCreation{}, errors.New(errNotPipelineConfig)
 	}
 
-	requestBody := mapAPIToDtoPipelineConfig(cr.Spec.ForProvider)
+	requestBody, err := mapAPIToDtoPipelineConfig(ctx, c.kube, cr.Spec.ForProvider)
+	if err != nil {
+		return managed.ExternalCreation{}, errors.Wrap(err, "could not map api to dto")
+	}
+
 	out, etag, err := c.service.Create(ctx, requestBody)
 	if err != nil {
 		return managed.ExternalCreation{}, errors.Wrap(err, "cannot create pipeline config")
@@ -237,7 +186,11 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalUpdate{}, errors.New(errNotPipelineConfig)
 	}
 
-	requestBody := mapAPIToDtoPipelineConfig(cr.Spec.ForProvider)
+	requestBody, err := mapAPIToDtoPipelineConfig(ctx, c.kube, cr.Spec.ForProvider)
+	if err != nil {
+		return managed.ExternalUpdate{}, errors.Wrap(err, "cannot map the api request to dto")
+	}
+
 	etag := ""
 	if cr.Annotations != nil {
 		etag = cr.Annotations["gocd.crossplane.io/etag"]
@@ -291,8 +244,8 @@ func updateStatus(pc *v1alpha1.PipelineConfig, got *gocd.PipelineConfig) error {
 	return nil
 }
 
-func isUpToDate(pc v1alpha1.PipelineConfigForProvider, got *gocd.PipelineConfig) bool {
-	desired := mapAPIToDtoPipelineConfig(pc)
+func isUpToDate(ctx context.Context, client client.Client, pc v1alpha1.PipelineConfigForProvider, got *gocd.PipelineConfig) bool {
+	desired, _ := mapAPIToDtoPipelineConfig(ctx, client, pc)
 	isEqual := desired.Equal(got)
 	return isEqual
 }

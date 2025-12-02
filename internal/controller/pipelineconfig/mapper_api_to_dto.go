@@ -1,9 +1,17 @@
 package pipelineconfig
 
 import (
+	"context"
+	"crypto/sha256"
+	"fmt"
+
 	"github.com/marquesgui/provider-gocd/apis/config/v1alpha1"
 	"github.com/marquesgui/provider-gocd/pkg/gocd"
+	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func stringOrNil(s string) *string {
@@ -27,7 +35,17 @@ func intstrOrNil(i intstr.IntOrString) *intstr.IntOrString {
 	return &i
 }
 
-func mapAPIToDtoPipelineConfig(cr v1alpha1.PipelineConfigForProvider) *gocd.PipelineConfig {
+func mapAPIToDtoPipelineConfig(ctx context.Context, kubeClient client.Client, cr v1alpha1.PipelineConfigForProvider) (*gocd.PipelineConfig, error) {
+	envVars, err := mapAPIEnvironmentVariablesToDTO(ctx, kubeClient, cr.EnvironmentVariables)
+	if err != nil {
+		return nil, errors.Wrap(err, "error while mapping api to dto")
+	}
+
+	stages, err := mapAPIStagesToDto(ctx, kubeClient, cr.Stages)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not map stage")
+	}
+
 	return &gocd.PipelineConfig{
 		Group:                stringOrNil(cr.Group),
 		LabelTemplate:        stringOrNil(cr.LabelTemplate),
@@ -36,12 +54,12 @@ func mapAPIToDtoPipelineConfig(cr v1alpha1.PipelineConfigForProvider) *gocd.Pipe
 		Template:             stringOrNil(cr.Template),
 		Origin:               mapAPIOriginToDTO(cr.Origin),
 		Parameters:           mapAPIParametersToDTO(cr.Parameters),
-		EnvironmentVariables: mapAPIEnvironmentVariablesToDTO(cr.EnvironmentVariables),
+		EnvironmentVariables: envVars,
 		Materials:            mapAPIMaterialsToDTO(cr.Materials),
-		Stages:               mapAPIStagesToDto(cr.Stages),
+		Stages:               stages,
 		TrackingTool:         mapAPITrackingToolToDTO(cr.TrackingTool),
 		Timer:                mapAPITimerToDTO(cr.Timer),
-	}
+	}, nil
 }
 
 func mapAPITimerToDTO(timer v1alpha1.Timer) *gocd.PipelineConfigTimer {
@@ -76,30 +94,45 @@ func mapAPIOriginToDTO(o v1alpha1.Origin) *gocd.PipelineConfigOrigin {
 	}
 }
 
-func mapAPIStagesToDto(stages []v1alpha1.Stage) []gocd.PipelineConfigStage {
+func mapAPIStagesToDto(ctx context.Context, kubeClient client.Client, stages []v1alpha1.Stage) ([]gocd.PipelineConfigStage, error) {
 	out := make([]gocd.PipelineConfigStage, 0, len(stages))
 	for _, v := range stages {
+		envVars, err := mapAPIEnvironmentVariablesToDTO(ctx, kubeClient, v.EnvironmentVariables)
+		if err != nil {
+			return nil, errors.Wrap(err, "could not map the env vars for the stage")
+		}
+
+		jobs, err := mapAPIStageJobsToDto(ctx, kubeClient, v.Jobs)
+		if err != nil {
+			return nil, errors.Wrap(err, "coud not map jobs for the stage")
+		}
+
 		out = append(out, gocd.PipelineConfigStage{
 			Name:                  v.Name,
 			FetchMaterials:        v.FetchMaterials,
 			CleanWorkingDirectory: v.CleanWorkingDir,
 			NeverCleanupArtifacts: v.NeverCleanupArtifacts,
 			Approval:              mapAPIStageApprovalToDTO(v.Approval),
-			EnvironmentVariables:  mapAPIEnvironmentVariablesToDTO(v.EnvironmentVariables),
-			Jobs:                  mapAPIStageJobsToDto(v.Jobs),
+			EnvironmentVariables:  envVars,
+			Jobs:                  jobs,
 		})
 	}
-	return out
+	return out, nil
 }
 
-func mapAPIStageJobsToDto(jobs []v1alpha1.Job) []gocd.PipelineConfigStageJobs {
+func mapAPIStageJobsToDto(ctx context.Context, kubeClient client.Client, jobs []v1alpha1.Job) ([]gocd.PipelineConfigStageJobs, error) {
 	out := make([]gocd.PipelineConfigStageJobs, 0, len(jobs))
 	for _, v := range jobs {
+		envVars, err := mapAPIEnvironmentVariablesToDTO(ctx, kubeClient, v.EnvironmentVariables)
+		if err != nil {
+			return nil, errors.Wrap(err, "could no map env var for the job")
+		}
+
 		out = append(out, gocd.PipelineConfigStageJobs{
 			Name:                 v.Name,
 			RunInstanceCount:     intstrOrNil(v.RunInstanceCount),
 			Timeout:              v.Timeout,
-			EnvironmentVariables: mapAPIEnvironmentVariablesToDTO(v.EnvironmentVariables),
+			EnvironmentVariables: envVars,
 			Resources:            v.Resources,
 			Tasks:                mapAPIJobTasksToDTO(v.Tasks),
 			Tabs:                 mapAPIJobTabsToDTO(v.Tabs),
@@ -107,7 +140,8 @@ func mapAPIStageJobsToDto(jobs []v1alpha1.Job) []gocd.PipelineConfigStageJobs {
 			ElasticProfileID:     v.ElasticProfileID,
 		})
 	}
-	return out
+
+	return out, nil
 }
 
 func mapAPIJobArtifactsToDTO(artifacts []v1alpha1.JobArtifact) []gocd.PipelineConfigStageJobsArtifact {
@@ -525,15 +559,65 @@ func mapAPIFilterToDTO(f v1alpha1.Filter) *gocd.PipelineConfigMaterialFilter {
 	}
 }
 
-func mapAPIEnvironmentVariablesToDTO(variables []v1alpha1.EnvironmentVariable) []gocd.EnvironmentVariable {
+func mapAPIEnvironmentVariablesToDTO(ctx context.Context, kubeClient client.Client, variables []v1alpha1.EnvironmentVariable) ([]gocd.EnvironmentVariable, error) { //nolint gocyclo
 	out := make([]gocd.EnvironmentVariable, 0, len(variables))
 	for _, v := range variables {
-		out = append(out, gocd.EnvironmentVariable{
-			Name:  v.Name,
-			Value: v.Value,
-		})
+		if v.Value != "" {
+			out = append(out, gocd.EnvironmentVariable{
+				Name:  v.Name,
+				Value: v.Value,
+			})
+			continue
+		}
+
+		if v.ValueFrom != nil && v.ValueFrom.ConfigMapKeyRef != nil {
+			nn := types.NamespacedName{
+				Name:      v.ValueFrom.ConfigMapKeyRef.Name,
+				Namespace: v.ValueFrom.ConfigMapKeyRef.Namespace,
+			}
+			cm := &corev1.ConfigMap{}
+			if err := kubeClient.Get(ctx, nn, cm); err != nil {
+				return nil, errors.Wrap(err, fmt.Sprintf("could not retrieve the config map named %s on namespace %s", v.ValueFrom.ConfigMapKeyRef.Name, v.ValueFrom.ConfigMapKeyRef.Namespace))
+			}
+			keyValue, ok := cm.Data[v.ValueFrom.ConfigMapKeyRef.Key]
+			if !ok {
+				return nil, errors.New(fmt.Sprintf("could not find value for config map key %s", v.ValueFrom.ConfigMapKeyRef.Key))
+			}
+			out = append(out, gocd.EnvironmentVariable{
+				Name:  v.Name,
+				Value: keyValue,
+			})
+			continue
+		}
+
+		if v.ValueFrom != nil && v.ValueFrom.SecretKeyRef != nil {
+			nn := types.NamespacedName{
+				Name:      v.ValueFrom.SecretKeyRef.Name,
+				Namespace: v.ValueFrom.SecretKeyRef.Namespace,
+			}
+			s := &corev1.Secret{}
+			if err := kubeClient.Get(ctx, nn, s); err != nil {
+				return nil, errors.Wrap(err, fmt.Sprintf("could not retrieve the secret named %s on namespace %s", v.ValueFrom.SecretKeyRef.Name, v.ValueFrom.SecretKeyRef.Namespace))
+			}
+			keyValue, ok := s.Data[v.ValueFrom.SecretKeyRef.Key]
+			if !ok {
+				return nil, errors.New(fmt.Sprintf("could not find value for secret %s", v.ValueFrom.SecretKeyRef.Key))
+			}
+			out = append(out, gocd.EnvironmentVariable{
+				Name:   v.Name,
+				Value:  string(keyValue),
+				Secure: true,
+			})
+			continue
+		}
 	}
-	return out
+
+	annotations := make(map[string]string)
+	for _, v := range out {
+		annotations[v.Name] = fmt.Sprintf("%x", sha256.Sum256([]byte(v.Value)))
+	}
+
+	return out, nil
 }
 
 func mapAPIParametersToDTO(parameters []v1alpha1.Parameter) []gocd.PipelineConfigParameter {
