@@ -824,6 +824,10 @@ type PipelineConfigSpec struct {
 type PipelineConfigStatus struct {
 	xpv1.ResourceStatus `json:",inline"`
 	AtProvider          *runtime.RawExtension `json:"atProvider,omitempty"`
+	// EnvironmentVariableHashes stores the hashes of the environment variables
+	// to detect changes in secure variables.
+	// +optional
+	EnvironmentVariableHashes map[string]string `json:"environmentVariableHashes,omitempty"`
 }
 
 // +kubebuilder:object:root=true

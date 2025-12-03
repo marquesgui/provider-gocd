@@ -19,6 +19,7 @@ package pipelineconfig
 import (
 	"context"
 	"encoding/json"
+	"reflect"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/marquesgui/provider-gocd/pkg/gocd"
@@ -137,7 +138,10 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	}
 
 	keepETag(pc, etag)
-	upToDate := isUpToDate(ctx, c.kube, pc.Spec.ForProvider, got)
+	upToDate, err := isUpToDate(ctx, c.kube, pc, got)
+	if err != nil {
+		return managed.ExternalObservation{}, errors.Wrap(err, "cannot determine if pipeline config is up to date")
+	}
 
 	if upToDate {
 		pc.SetConditions(xpv1.Available())
@@ -167,6 +171,13 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	if err != nil {
 		return managed.ExternalCreation{}, errors.Wrap(err, "cannot create pipeline config")
 	}
+
+	hashes, err := calculateHashes(ctx, c.kube, cr.Spec.ForProvider)
+	if err != nil {
+		return managed.ExternalCreation{}, errors.Wrap(err, "cannot calculate hashes from spec")
+	}
+	cr.Status.EnvironmentVariableHashes = hashes
+
 	if out != nil {
 		err = updateStatus(cr, out)
 		if err != nil {
@@ -199,6 +210,13 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 	if err != nil {
 		return managed.ExternalUpdate{}, errors.Wrap(err, "cannot update pipeline config")
 	}
+
+	hashes, err := calculateHashes(ctx, c.kube, cr.Spec.ForProvider)
+	if err != nil {
+		return managed.ExternalUpdate{}, errors.Wrap(err, "cannot calculate hashes from spec")
+	}
+	cr.Status.EnvironmentVariableHashes = hashes
+
 	keepETag(cr, etag)
 	err = updateStatus(cr, out)
 	if err != nil {
@@ -244,8 +262,24 @@ func updateStatus(pc *v1alpha1.PipelineConfig, got *gocd.PipelineConfig) error {
 	return nil
 }
 
-func isUpToDate(ctx context.Context, client client.Client, pc v1alpha1.PipelineConfigForProvider, got *gocd.PipelineConfig) bool {
-	desired, _ := mapAPIToDtoPipelineConfig(ctx, client, pc)
-	isEqual := desired.Equal(got)
-	return isEqual
+func isUpToDate(ctx context.Context, kube client.Client, pc *v1alpha1.PipelineConfig, got *gocd.PipelineConfig) (bool, error) {
+	specHashes, err := calculateHashes(ctx, kube, pc.Spec.ForProvider)
+	if err != nil {
+		return false, errors.Wrap(err, "cannot calculate hashes from spec")
+	}
+
+	environmentIsEqual := len(specHashes) > 0 && len(pc.Status.EnvironmentVariableHashes) > 0 &&
+		len(specHashes) == len(pc.Status.EnvironmentVariableHashes) &&
+		reflect.DeepEqual(specHashes, pc.Status.EnvironmentVariableHashes)
+
+	if !environmentIsEqual {
+		return false, nil
+	}
+
+	desired, err := mapAPIToDtoPipelineConfig(ctx, kube, pc.Spec.ForProvider)
+	if err != nil {
+		return false, errors.Wrap(err, "cannot map api to dto")
+	}
+
+	return desired.Equal(got), nil
 }

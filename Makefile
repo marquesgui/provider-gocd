@@ -24,7 +24,7 @@ GO111MODULE = on
 GOLANGCILINT_VERSION = 2.1.2
 -include build/makelib/golang.mk
 
-# ====================================================================================
+# =============================== =====================================================
 # Setup Kubernetes tools
 
 -include build/makelib/k8s_tools.mk

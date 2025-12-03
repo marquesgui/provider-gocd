@@ -2,14 +2,10 @@ package pipelineconfig
 
 import (
 	"context"
-	"crypto/sha256"
-	"fmt"
 
 	"github.com/marquesgui/provider-gocd/apis/config/v1alpha1"
 	"github.com/marquesgui/provider-gocd/pkg/gocd"
 	"github.com/pkg/errors"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -562,59 +558,23 @@ func mapAPIFilterToDTO(f v1alpha1.Filter) *gocd.PipelineConfigMaterialFilter {
 func mapAPIEnvironmentVariablesToDTO(ctx context.Context, kubeClient client.Client, variables []v1alpha1.EnvironmentVariable) ([]gocd.EnvironmentVariable, error) { //nolint gocyclo
 	out := make([]gocd.EnvironmentVariable, 0, len(variables))
 	for _, v := range variables {
+		var value string
+		var err error
+		var secure bool
 		if v.Value != "" {
-			out = append(out, gocd.EnvironmentVariable{
-				Name:  v.Name,
-				Value: v.Value,
-			})
-			continue
+			value = v.Value
+		} else if v.ValueFrom != nil {
+			value, secure, err = GetValueFrom(ctx, kubeClient, v.ValueFrom)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to get value for variable %s", v.Name)
+			}
 		}
 
-		if v.ValueFrom != nil && v.ValueFrom.ConfigMapKeyRef != nil {
-			nn := types.NamespacedName{
-				Name:      v.ValueFrom.ConfigMapKeyRef.Name,
-				Namespace: v.ValueFrom.ConfigMapKeyRef.Namespace,
-			}
-			cm := &corev1.ConfigMap{}
-			if err := kubeClient.Get(ctx, nn, cm); err != nil {
-				return nil, errors.Wrap(err, fmt.Sprintf("could not retrieve the config map named %s on namespace %s", v.ValueFrom.ConfigMapKeyRef.Name, v.ValueFrom.ConfigMapKeyRef.Namespace))
-			}
-			keyValue, ok := cm.Data[v.ValueFrom.ConfigMapKeyRef.Key]
-			if !ok {
-				return nil, errors.New(fmt.Sprintf("could not find value for config map key %s", v.ValueFrom.ConfigMapKeyRef.Key))
-			}
-			out = append(out, gocd.EnvironmentVariable{
-				Name:  v.Name,
-				Value: keyValue,
-			})
-			continue
-		}
-
-		if v.ValueFrom != nil && v.ValueFrom.SecretKeyRef != nil {
-			nn := types.NamespacedName{
-				Name:      v.ValueFrom.SecretKeyRef.Name,
-				Namespace: v.ValueFrom.SecretKeyRef.Namespace,
-			}
-			s := &corev1.Secret{}
-			if err := kubeClient.Get(ctx, nn, s); err != nil {
-				return nil, errors.Wrap(err, fmt.Sprintf("could not retrieve the secret named %s on namespace %s", v.ValueFrom.SecretKeyRef.Name, v.ValueFrom.SecretKeyRef.Namespace))
-			}
-			keyValue, ok := s.Data[v.ValueFrom.SecretKeyRef.Key]
-			if !ok {
-				return nil, errors.New(fmt.Sprintf("could not find value for secret %s", v.ValueFrom.SecretKeyRef.Key))
-			}
-			out = append(out, gocd.EnvironmentVariable{
-				Name:   v.Name,
-				Value:  string(keyValue),
-				Secure: true,
-			})
-			continue
-		}
-	}
-
-	annotations := make(map[string]string)
-	for _, v := range out {
-		annotations[v.Name] = fmt.Sprintf("%x", sha256.Sum256([]byte(v.Value)))
+		out = append(out, gocd.EnvironmentVariable{
+			Name:   v.Name,
+			Value:  value,
+			Secure: secure,
+		})
 	}
 
 	return out, nil

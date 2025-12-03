@@ -3414,6 +3414,13 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
+              environmentVariableHashes:
+                additionalProperties:
+                  type: string
+                description: |-
+                  EnvironmentVariableHashes stores the hashes of the environment variables
+                  to detect changes in secure variables.
+                type: object
               observedGeneration:
                 description: |-
                   ObservedGeneration is the latest metadata.generation

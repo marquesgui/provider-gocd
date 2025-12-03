@@ -91,9 +91,6 @@ func (c *client) do(ctx context.Context, method, path, accept string, headers ma
 	var rdr io.ReadCloser
 	if body != nil {
 		b, err := json.Marshal(body)
-
-		fmt.Println(string(b))
-
 		if err != nil {
 			return nil, err
 		}
