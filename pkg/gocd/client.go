@@ -29,6 +29,7 @@ type Client interface {
 	AuthorizationConfigurations() AuthorizationConfigurationsService
 	Roles() RolesService
 	PipelineConfigs() PipelineConfigsService
+	ElasticAgentProfile() ElasticAgentProfileService
 }
 
 // client is an http-based implementation of Client.

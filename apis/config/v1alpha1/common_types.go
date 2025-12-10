@@ -42,10 +42,10 @@ type EnvironmentVariable struct { //nolint:recvcheck
 	// +kubebuilder:validation:Optional
 	Value string `json:"value,omitempty"`
 	// +kubebuilder:validation:Optional
-	ValueFrom *EnvVarSource `json:"valueFrom,omitempty"`
+	ValueFrom *ValueSource `json:"valueFrom,omitempty"`
 }
 
-type EnvVarSource struct {
+type ValueSource struct {
 	// +kubebuilder:validation:Optional
 	ConfigMapKeyRef *ConfigMapKeySelector `json:"configMapKeyRef,omitempty"`
 	// +kubebuilder:validation:Optional

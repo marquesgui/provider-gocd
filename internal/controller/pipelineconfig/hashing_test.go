@@ -86,7 +86,7 @@ func TestCalculateHashes(t *testing.T) {
 								{
 									Name: "job1",
 									EnvironmentVariables: []v1alpha1.EnvironmentVariable{
-										{Name: "JOB_VAR", ValueFrom: &v1alpha1.EnvVarSource{
+										{Name: "JOB_VAR", ValueFrom: &v1alpha1.ValueSource{
 											SecretKeyRef: &xpv1.SecretKeySelector{
 												SecretReference: xpv1.SecretReference{
 													Name:      "secret1",

@@ -36,7 +36,7 @@ func GetSecretValue(ctx context.Context, kube client.Client, selector *xpv1.Secr
 }
 
 // GetValueFrom retrieves the value from a given environment variable source.
-func GetValueFrom(ctx context.Context, kube client.Client, from *v1alpha1.EnvVarSource) (string, bool, error) {
+func GetValueFrom(ctx context.Context, kube client.Client, from *v1alpha1.ValueSource) (string, bool, error) {
 	if from.ConfigMapKeyRef != nil {
 		nn := types.NamespacedName{
 			Name:      from.ConfigMapKeyRef.Name,
