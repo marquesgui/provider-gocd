@@ -24,24 +24,24 @@ import (
 	"strings"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/pkg/connection"
+	"github.com/crossplane/crossplane-runtime/pkg/controller"
+	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/feature"
+	"github.com/crossplane/crossplane-runtime/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
+	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/pkg/statemetrics"
+	"github.com/marquesgui/provider-gocd/apis/config/v1alpha1"
+	apisv1alpha1 "github.com/marquesgui/provider-gocd/apis/v1alpha1"
+	"github.com/marquesgui/provider-gocd/internal/controller/helper"
+	"github.com/marquesgui/provider-gocd/internal/features"
 	"github.com/marquesgui/provider-gocd/pkg/gocd"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/crossplane/crossplane-runtime/pkg/connection"
-	"github.com/crossplane/crossplane-runtime/pkg/controller"
-	"github.com/crossplane/crossplane-runtime/pkg/event"
-	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
-	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/statemetrics"
-
-	"github.com/marquesgui/provider-gocd/apis/config/v1alpha1"
-	apisv1alpha1 "github.com/marquesgui/provider-gocd/apis/v1alpha1"
-	"github.com/marquesgui/provider-gocd/internal/features"
 )
 
 const (
@@ -191,7 +191,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		return managed.ExternalObservation{}, errors.New(errNotRole)
 	}
 
-	name := r.Spec.ForProvider.Name
+	name := meta.GetExternalName(r)
 	if name == "" {
 		return managed.ExternalObservation{ResourceExists: false}, nil
 	}
@@ -205,9 +205,9 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	}
 
 	updateStatus(r, got)
-	keepETag(r, etag)
+	helper.KeepETag(r, etag)
 
-	upToDate := isUpToDate(&r.Spec.ForProvider, got)
+	upToDate := isUpToDate(r, got)
 	if upToDate {
 		r.SetConditions(xpv1.Available())
 	} else {
@@ -227,15 +227,18 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalCreation{}, errors.New(errNotRole)
 	}
 
-	in := createRoleRequest(cr)
+	name := helper.GetID(cr, cr.Spec.ForProvider.Name)
+
+	in := createRoleRequest(name, cr)
 	out, etag, err := c.service.Create(ctx, in)
 	if err != nil {
 		return managed.ExternalCreation{}, errors.Wrap(err, "cannot create role")
 	}
 	if out != nil {
+		meta.SetExternalName(cr, out.Name)
 		cr.Status.AtProvider.Name = out.Name
 	}
-	keepETag(cr, etag)
+	helper.KeepETag(cr, etag)
 
 	return managed.ExternalCreation{
 		ConnectionDetails: managed.ConnectionDetails{},
@@ -248,17 +251,18 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalUpdate{}, errors.New(errNotRole)
 	}
 
-	in := createRoleRequest(cr)
+	name := meta.GetExternalName(cr)
+	in := createRoleRequest(name, cr)
 
-	etag := cr.Annotations["gocd.crossplane.io/etag"]
-	out, newETag, err := c.service.Update(ctx, cr.Spec.ForProvider.Name, in, etag)
+	etag := helper.GetETag(cr)
+	out, newETag, err := c.service.Update(ctx, name, in, etag)
 	if err != nil {
 		return managed.ExternalUpdate{}, errors.Wrap(err, "cannot update role")
 	}
 	if out != nil {
 		updateStatus(cr, out)
 	}
-	keepETag(cr, newETag)
+	helper.KeepETag(cr, newETag)
 
 	return managed.ExternalUpdate{ConnectionDetails: managed.ConnectionDetails{}}, nil
 }
@@ -269,12 +273,10 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalDelete{}, errors.New(errNotRole)
 	}
 
-	etag := ""
-	if cr.Annotations != nil {
-		etag = cr.Annotations["gocd.crossplane.io/etag"]
-	}
+	name := meta.GetExternalName(cr)
+	etag := helper.GetETag(cr)
 
-	if err := c.service.Delete(ctx, cr.Spec.ForProvider.Name, etag); err != nil {
+	if err := c.service.Delete(ctx, name, etag); err != nil {
 		return managed.ExternalDelete{}, errors.Wrap(err, "cannot delete role")
 	}
 	return managed.ExternalDelete{}, nil
@@ -284,8 +286,9 @@ func (c *external) Disconnect(_ context.Context) error {
 	return nil
 }
 
-func isUpToDate(current *v1alpha1.RoleParameters, got *gocd.Role) bool { //nolint:gocyclo
-	if current.Name != got.Name || current.Type != got.Type {
+func isUpToDate(cr *v1alpha1.Role, got *gocd.Role) bool { //nolint:gocyclo
+	current := &cr.Spec.ForProvider
+	if meta.GetExternalName(cr) != got.Name || current.Type != got.Type {
 		return false
 	}
 
@@ -422,16 +425,7 @@ func updateStatus(cr *v1alpha1.Role, got *gocd.Role) {
 	}
 }
 
-func keepETag(cr *v1alpha1.Role, etag string) {
-	if cr.Annotations == nil {
-		cr.Annotations = map[string]string{}
-	}
-	if etag != "" {
-		cr.Annotations["gocd.crossplane.io/etag"] = etag
-	}
-}
-
-func createRoleRequest(cr *v1alpha1.Role) gocd.Role {
+func createRoleRequest(name string, cr *v1alpha1.Role) gocd.Role {
 	prop := make([]gocd.ConfigProperty, 0)
 	for _, v := range cr.Spec.ForProvider.Attributes.Properties {
 		prop = append(prop, gocd.ConfigProperty{Key: v.Key, Value: v.Value})
@@ -447,7 +441,7 @@ func createRoleRequest(cr *v1alpha1.Role) gocd.Role {
 		})
 	}
 	return gocd.Role{
-		Name: cr.Spec.ForProvider.Name,
+		Name: name,
 		Type: cr.Spec.ForProvider.Type,
 		Attributes: &gocd.RoleAttributes{
 			AuthConfigID: cr.Spec.ForProvider.Attributes.AuthConfigID,

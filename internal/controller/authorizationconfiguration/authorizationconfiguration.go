@@ -26,6 +26,7 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/feature"
+	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -41,6 +42,7 @@ import (
 
 	"github.com/marquesgui/provider-gocd/apis/config/v1alpha1"
 	apisv1alpha1 "github.com/marquesgui/provider-gocd/apis/v1alpha1"
+	"github.com/marquesgui/provider-gocd/internal/controller/helper"
 	"github.com/marquesgui/provider-gocd/internal/features"
 	"github.com/marquesgui/provider-gocd/pkg/gocd"
 )
@@ -193,9 +195,8 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		return managed.ExternalObservation{}, errors.New(errNotAuthorizationConfiguration)
 	}
 
-	id := cr.Spec.ForProvider.ID
+	id := meta.GetExternalName(cr)
 	if id == "" {
-		// If no desired id, nothing exists yet
 		return managed.ExternalObservation{ResourceExists: false}, nil
 	}
 
@@ -210,7 +211,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	// Update status from observed state
 	updateStatus(cr, got)
 	// Store ETag for future updates
-	keepETag(cr, etag)
+	helper.KeepETag(cr, etag)
 	upToDate := isUpToDate(cr, got, etag)
 
 	if upToDate {
@@ -232,8 +233,10 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalCreation{}, errors.New(errNotAuthorizationConfiguration)
 	}
 
+	id := helper.GetID(cr, cr.Spec.ForProvider.ID)
+
 	in := gocd.AuthorizationConfiguration{
-		ID:                         cr.Spec.ForProvider.ID,
+		ID:                         id,
 		PluginID:                   cr.Spec.ForProvider.PluginID,
 		AllowOnlyKnownUsersToLogin: cr.Spec.ForProvider.AllowOnlyKnowUsersToLogin,
 	}
@@ -246,15 +249,10 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalCreation{}, errors.Wrap(err, "cannot create authorization configuration")
 	}
 	if out != nil {
-		cr.Status.AtProvider.ID = out.ID
+		meta.SetExternalName(cr, out.ID)
+		updateStatus(cr, out)
 	}
-	if cr.Annotations == nil {
-		cr.Annotations = map[string]string{}
-	}
-	if etag != "" {
-		cr.Annotations["gocd.crossplane.io/etag"] = etag
-		cr.Status.AtProvider.TransactionID = createTransactionID(etag, cr.Generation)
-	}
+	helper.KeepETag(cr, etag)
 
 	return managed.ExternalCreation{ConnectionDetails: managed.ConnectionDetails{}}, nil
 }
@@ -265,8 +263,9 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalUpdate{}, errors.New(errNotAuthorizationConfiguration)
 	}
 
+	id := meta.GetExternalName(cr)
 	in := gocd.AuthorizationConfiguration{
-		ID:                         cr.Spec.ForProvider.ID,
+		ID:                         id,
 		PluginID:                   cr.Spec.ForProvider.PluginID,
 		AllowOnlyKnownUsersToLogin: cr.Spec.ForProvider.AllowOnlyKnowUsersToLogin,
 	}
@@ -274,24 +273,15 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 		in.Properties = append(in.Properties, gocd.ConfigProperty{Key: p.Key, Value: p.Value})
 	}
 
-	etag := ""
-	if cr.Annotations != nil {
-		etag = cr.Annotations["gocd.crossplane.io/etag"]
-	}
-	out, newETag, err := c.service.Update(ctx, cr.Spec.ForProvider.ID, in, etag)
+	etag := helper.GetETag(cr)
+	out, newETag, err := c.service.Update(ctx, id, in, etag)
 	if err != nil {
-		return managed.ExternalUpdate{}, err
+		return managed.ExternalUpdate{}, errors.Wrap(err, "cannot update authorization configuration")
 	}
 	if out != nil {
-		cr.Status.AtProvider.ID = out.ID
+		updateStatus(cr, out)
 	}
-	if cr.Annotations == nil {
-		cr.Annotations = map[string]string{}
-	}
-	if newETag != "" {
-		cr.Annotations["gocd.crossplane.io/etag"] = newETag
-		cr.Status.AtProvider.TransactionID = createTransactionID(newETag, cr.Generation)
-	}
+	helper.KeepETag(cr, newETag)
 
 	return managed.ExternalUpdate{ConnectionDetails: managed.ConnectionDetails{}}, nil
 }
@@ -302,16 +292,14 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalDelete{}, errors.New(errNotAuthorizationConfiguration)
 	}
 
-	etag := ""
-	if cr.Annotations != nil {
-		etag = cr.Annotations["gocd.crossplane.io/etag"]
-	}
-	id := cr.Spec.ForProvider.ID
+	id := meta.GetExternalName(cr)
+	etag := helper.GetETag(cr)
+
 	if id == "" {
 		return managed.ExternalDelete{}, nil
 	}
 	if err := c.service.Delete(ctx, id, etag); err != nil {
-		return managed.ExternalDelete{}, err
+		return managed.ExternalDelete{}, errors.Wrap(err, "cannot delete authorization configuration")
 	}
 	return managed.ExternalDelete{}, nil
 }
@@ -366,15 +354,6 @@ func isUpToDate(cr *v1alpha1.AuthorizationConfiguration, got *gocd.Authorization
 		cr.Spec.ForProvider.AllowOnlyKnowUsersToLogin == got.AllowOnlyKnownUsersToLogin &&
 		cr.Status.AtProvider.TransactionID == createTransactionID(etag, cr.Generation) &&
 		hasSameProperties
-}
-
-func keepETag(cr *v1alpha1.AuthorizationConfiguration, etag string) {
-	if cr.Annotations == nil {
-		cr.Annotations = map[string]string{}
-	}
-	if etag != "" {
-		cr.Annotations["gocd.crossplane.io/etag"] = etag
-	}
 }
 
 func createTransactionID(etag string, generation int64) string {

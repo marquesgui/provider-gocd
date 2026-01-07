@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"slices"
@@ -1323,11 +1322,10 @@ func (p *pipelineConfigsService) Get(ctx context.Context, name string) (*Pipelin
 	path := fmt.Sprintf("%s/%s", pipelineConfigsServicePath, url.PathEscape(name))
 	resp, err := p.c.do(ctx, http.MethodGet, path, acceptPipelineConfigs, nil, nil)
 	if err != nil {
+		if IsNotFound(err) {
+			return nil, "", nil
+		}
 		return nil, "", errors.Wrap(err, "gocd: failed to get pipeline config")
-	}
-	if resp.StatusCode == http.StatusNotFound {
-		_ = resp.Body.Close()
-		return nil, "", nil
 	}
 	var result PipelineConfig
 	err = decodeJSON(resp, &result)
@@ -1343,14 +1341,6 @@ func (p *pipelineConfigsService) Create(ctx context.Context, pc *PipelineConfig)
 	resp, err := p.c.do(ctx, http.MethodPost, pipelineConfigsServicePath, acceptPipelineConfigs, nil, b)
 	if err != nil {
 		return nil, "", errors.Wrap(err, "gocd: failed to create pipeline config")
-	}
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, "", errors.New("gocd: pipeline group not found")
-	}
-	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		b, _ := io.ReadAll(resp.Body)
-		fmt.Println(string(b))
-		return nil, "", fmt.Errorf("gocd: unexpected status %d: %s", resp.StatusCode, string(b))
 	}
 
 	var result PipelineConfig
@@ -1402,9 +1392,5 @@ func (p *pipelineConfigsService) Delete(ctx context.Context, name string) error 
 	if err != nil {
 		return errors.Wrap(err, "gocd: failed to delete pipeline config")
 	}
-	if resp.StatusCode != http.StatusOK {
-		return errors.Errorf("gocd: failed to delete pipeline config: %s", resp.Status)
-	}
-	_ = resp.Body.Close()
-	return nil
+	return resp.Body.Close()
 }

@@ -10,6 +10,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 // Config holds parameters to connect to a GoCD server.
@@ -30,6 +32,29 @@ type Client interface {
 	Roles() RolesService
 	PipelineConfigs() PipelineConfigsService
 	ElasticAgentProfile() ElasticAgentProfileService
+}
+
+// APIError represents an error returned by the GoCD API.
+type APIError struct {
+	StatusCode int
+	Message    string
+	Body       string
+}
+
+func (e *APIError) Error() string {
+	if e.Body != "" {
+		return fmt.Sprintf("gocd: %s (status %d): %s", e.Message, e.StatusCode, e.Body)
+	}
+	return fmt.Sprintf("gocd: %s (status %d)", e.Message, e.StatusCode)
+}
+
+// IsNotFound returns true if the error is a 404 Not Found.
+func IsNotFound(err error) bool {
+	var apiErr *APIError
+	if errors.As(err, &apiErr) {
+		return apiErr.StatusCode == http.StatusNotFound
+	}
+	return false
 }
 
 // client is an http-based implementation of Client.
@@ -120,7 +145,22 @@ func (c *client) do(ctx context.Context, method, path, accept string, headers ma
 		req.Header.Set(k, v)
 	}
 
-	return c.http.Do(req)
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode >= 400 {
+		defer resp.Body.Close()
+		b, _ := io.ReadAll(resp.Body)
+		return nil, &APIError{
+			StatusCode: resp.StatusCode,
+			Message:    "request failed",
+			Body:       string(b),
+		}
+	}
+
+	return resp, nil
 }
 
 // decodeJSON decodes a JSON response and closes the body.

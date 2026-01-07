@@ -101,7 +101,6 @@ spec:
                     type: array
                 required:
                 - allowOnlyKnowUsersToLogin
-                - id
                 - pluginId
                 - properties
                 type: object

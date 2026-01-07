@@ -20,27 +20,26 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/crossplane/crossplane-runtime/pkg/feature"
-
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/pkg/connection"
+	"github.com/crossplane/crossplane-runtime/pkg/controller"
+	"github.com/crossplane/crossplane-runtime/pkg/event"
+	"github.com/crossplane/crossplane-runtime/pkg/feature"
+	"github.com/crossplane/crossplane-runtime/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
+	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/pkg/statemetrics"
+	"github.com/marquesgui/provider-gocd/apis/config/v1alpha1"
+	apisv1alpha1 "github.com/marquesgui/provider-gocd/apis/v1alpha1"
+	"github.com/marquesgui/provider-gocd/internal/controller/helper"
+	"github.com/marquesgui/provider-gocd/internal/features"
+	"github.com/marquesgui/provider-gocd/pkg/gocd"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/crossplane/crossplane-runtime/pkg/connection"
-	"github.com/crossplane/crossplane-runtime/pkg/controller"
-	"github.com/crossplane/crossplane-runtime/pkg/event"
-	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
-	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/statemetrics"
-
-	"github.com/marquesgui/provider-gocd/apis/config/v1alpha1"
-	apisv1alpha1 "github.com/marquesgui/provider-gocd/apis/v1alpha1"
-	"github.com/marquesgui/provider-gocd/internal/features"
-	"github.com/marquesgui/provider-gocd/pkg/gocd"
 )
 
 const (
@@ -49,7 +48,6 @@ const (
 	errGetPC                  = "cannot get ProviderConfig"
 	errGetCreds               = "cannot get credentials"
 	errNewClient              = "cannot create new Service"
-	etagAnnotationKey         = "gocd.crossplane.io/etag"
 )
 
 var newService = func(creds []byte) (any, error) {
@@ -177,11 +175,16 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		return managed.ExternalObservation{}, errors.New(errNotElasticAgentProfile)
 	}
 
-	got, etag, err := c.service.Get(ctx, ea.Spec.ForProvider.ID)
+	id := meta.GetExternalName(ea)
+	if id == "" {
+		return managed.ExternalObservation{ResourceExists: false}, nil
+	}
+
+	got, etag, err := c.service.Get(ctx, id)
 	if err != nil {
 		return managed.ExternalObservation{}, errors.Wrap(err, "provider-gocd: cannot get the elastic agent profile")
 	}
-	if got != nil {
+	if got == nil {
 		return managed.ExternalObservation{ResourceExists: false}, nil
 	}
 
@@ -189,7 +192,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		return managed.ExternalObservation{}, errors.Wrap(err, "could not update the satus")
 	}
 
-	keepETag(ea, etag)
+	helper.KeepETag(ea, etag)
 	upToDate := isUpToDate(ctx, c.kube, ea, got)
 
 	if upToDate {
@@ -211,8 +214,10 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalCreation{}, errors.New(errNotElasticAgentProfile)
 	}
 
+	id := helper.GetID(cr, cr.Spec.ForProvider.ID)
+
 	elasticAgentProfile := gocd.ElasticAgentProfile{
-		ID:               cr.Spec.ForProvider.ID,
+		ID:               id,
 		ClusterProfileID: cr.Spec.ForProvider.ClusterProfileID,
 		Properties:       mapProperties(cr.Spec.ForProvider.Properties),
 	}
@@ -223,11 +228,12 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	}
 
 	if got != nil {
+		meta.SetExternalName(cr, got.ID)
 		if err := updateStatus(cr, got); err != nil {
 			return managed.ExternalCreation{}, errors.Wrap(err, "gocd: error while updating elastic agent profile status")
 		}
 	}
-	keepETag(cr, etag)
+	helper.KeepETag(cr, etag)
 
 	return managed.ExternalCreation{
 		ConnectionDetails: managed.ConnectionDetails{},
@@ -240,13 +246,14 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalUpdate{}, errors.New(errNotElasticAgentProfile)
 	}
 
+	id := meta.GetExternalName(cr)
 	rb := gocd.ElasticAgentProfile{
-		ID:               cr.Spec.ForProvider.ID,
+		ID:               id,
 		ClusterProfileID: cr.Spec.ForProvider.ClusterProfileID,
 		Properties:       mapProperties(cr.Spec.ForProvider.Properties),
 	}
 
-	etag := cr.Annotations[etagAnnotationKey]
+	etag := helper.GetETag(cr)
 	got, newEtag, err := c.service.Update(ctx, rb, etag)
 	if err != nil {
 		return managed.ExternalUpdate{}, errors.Wrap(err, "error updating the elastic agent profile")
@@ -255,7 +262,7 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 	if err := updateStatus(cr, got); err != nil {
 		return managed.ExternalUpdate{}, errors.Wrap(err, "could not update the elastic agent status")
 	}
-	keepETag(cr, newEtag)
+	helper.KeepETag(cr, newEtag)
 
 	return managed.ExternalUpdate{
 		// Optionally return any details that may be required to connect to the
@@ -270,7 +277,7 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalDelete{}, errors.New(errNotElasticAgentProfile)
 	}
 
-	if err := c.service.Delete(ctx, cr.Spec.ForProvider.ID); err != nil {
+	if err := c.service.Delete(ctx, meta.GetExternalName(cr)); err != nil {
 		return managed.ExternalDelete{}, errors.Wrap(err, "cannot delete the elastic agent profile")
 	}
 
@@ -288,15 +295,6 @@ func updateStatus(ea *v1alpha1.ElasticAgentProfile, got *gocd.ElasticAgentProfil
 	}
 	ea.Status.AtProvider = &runtime.RawExtension{Raw: b}
 	return nil
-}
-
-func keepETag(ea *v1alpha1.ElasticAgentProfile, etag string) {
-	if ea.Annotations == nil {
-		ea.Annotations = map[string]string{}
-	}
-	if etag != "" {
-		ea.Annotations[etagAnnotationKey] = etag
-	}
 }
 
 func isUpToDate(ctx context.Context, kube client.Client, ea *v1alpha1.ElasticAgentProfile, got *gocd.ElasticAgentProfileResponse) bool {

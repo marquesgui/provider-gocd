@@ -91,7 +91,6 @@ spec:
                     type: array
                 required:
                 - clusterProfileID
-                - id
                 - properties
                 type: object
               managementPolicies:

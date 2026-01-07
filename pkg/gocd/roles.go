@@ -3,10 +3,8 @@ package gocd
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
-	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -77,16 +75,10 @@ func (c *client) Roles() RolesService { return &rolesService{c: c} }
 func (s *rolesService) Get(ctx context.Context, name string) (*Role, string, error) {
 	resp, err := s.c.do(ctx, http.MethodGet, fmt.Sprintf("%s/%s", roleServicePath, url.PathEscape(name)), acceptRoles, nil, nil)
 	if err != nil {
+		if IsNotFound(err) {
+			return nil, "", nil
+		}
 		return nil, "", errors.Wrap(err, "gocd: failed to get role")
-	}
-	if resp.StatusCode == http.StatusNotFound {
-		_ = resp.Body.Close()
-		return nil, "", nil
-	}
-	if resp.StatusCode != http.StatusOK {
-		b, _ := io.ReadAll(resp.Body)
-		_ = resp.Body.Close()
-		return nil, "", fmt.Errorf("gocd: unexpected status %d: %s", resp.StatusCode, string(b))
 	}
 	var out Role
 	if err := decodeJSON(resp, &out); err != nil {
@@ -100,11 +92,6 @@ func (s *rolesService) Create(ctx context.Context, role Role) (*Role, string, er
 	resp, err := s.c.do(ctx, http.MethodPost, roleServicePath, acceptRoles, nil, role)
 	if err != nil {
 		return nil, "", err
-	}
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		b, _ := io.ReadAll(resp.Body)
-		_ = resp.Body.Close()
-		return nil, "", fmt.Errorf("gocd: unexpected status %d: %s", resp.StatusCode, string(b))
 	}
 	var out Role
 	if err := decodeJSON(resp, &out); err != nil {
@@ -123,11 +110,6 @@ func (s *rolesService) Update(ctx context.Context, name string, role Role, etag 
 	if err != nil {
 		return nil, "", errors.Wrap(err, "gocd: failed to update role")
 	}
-	if resp.StatusCode != http.StatusOK {
-		b, _ := io.ReadAll(resp.Body)
-		_ = resp.Body.Close()
-		return nil, "", fmt.Errorf("gocd: unexpected status %d: %s", resp.StatusCode, string(b))
-	}
 	var out Role
 	if err := decodeJSON(resp, &out); err != nil {
 		return nil, "", err
@@ -138,31 +120,13 @@ func (s *rolesService) Update(ctx context.Context, name string, role Role, etag 
 
 func (s *rolesService) Delete(ctx context.Context, name string, etag string) error {
 	path := fmt.Sprintf("%s/%s", roleServicePath, url.PathEscape(name))
-	rel := &url.URL{Path: strings.TrimSuffix(s.c.base.Path, "/") + "/" + strings.TrimPrefix(path, "/")}
-	u := *s.c.base
-	u.Path = rel.Path
-	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, u.String(), nil)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("User-Agent", s.c.ua)
-	req.Header.Set("Accept", acceptRoles)
+	headers := make(map[string]string)
 	if etag != "" {
-		req.Header.Set("If-Match", etag)
+		headers["If-Match"] = etag
 	}
-	if s.c.token != "" {
-		req.Header.Set("Authorization", "Bearer "+s.c.token)
-	} else if s.c.basic {
-		req.SetBasicAuth(s.c.user, s.c.pass)
-	}
-	resp, err := s.c.http.Do(req)
+	resp, err := s.c.do(ctx, http.MethodDelete, path, acceptRoles, headers, nil)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close() //nolint:errcheck
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
-		b, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("gocd: unexpected status %d: %s", resp.StatusCode, string(b))
-	}
-	return nil
+	return resp.Body.Close()
 }

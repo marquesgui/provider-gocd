@@ -25,10 +25,12 @@ import (
 	"github.com/marquesgui/provider-gocd/pkg/gocd"
 
 	"github.com/pkg/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
@@ -41,6 +43,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/pkg/statemetrics"
+	"github.com/marquesgui/provider-gocd/internal/controller/helper"
 	"github.com/marquesgui/provider-gocd/internal/features"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
@@ -182,7 +185,12 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		return managed.ExternalObservation{}, errors.New(errNotPipelineConfig)
 	}
 
-	got, etag, err := c.service.Get(ctx, pc.Spec.ForProvider.Name)
+	name := meta.GetExternalName(pc)
+	if name == "" {
+		return managed.ExternalObservation{ResourceExists: false}, nil
+	}
+
+	got, etag, err := c.service.Get(ctx, name)
 	if err != nil {
 		return managed.ExternalObservation{}, errors.Wrap(err, "cannot get pipeline config")
 	}
@@ -195,7 +203,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		return managed.ExternalObservation{}, errors.Wrap(err, "cannot update status")
 	}
 
-	keepETag(pc, etag)
+	helper.KeepETag(pc, etag)
 	upToDate, err := isUpToDate(ctx, c.kube, pc, got)
 	if err != nil {
 		return managed.ExternalObservation{}, errors.Wrap(err, "cannot determine if pipeline config is up to date")
@@ -220,6 +228,9 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalCreation{}, errors.New(errNotPipelineConfig)
 	}
 
+	name := helper.GetID(cr, cr.Spec.ForProvider.Name)
+	cr.Spec.ForProvider.Name = name
+
 	requestBody, err := mapAPIToDtoPipelineConfig(ctx, c.kube, cr.Spec.ForProvider)
 	if err != nil {
 		return managed.ExternalCreation{}, errors.Wrap(err, "could not map api to dto")
@@ -237,12 +248,15 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	cr.Status.EnvironmentVariableHashes = hashes
 
 	if out != nil {
+		if out.Name != nil {
+			meta.SetExternalName(cr, *out.Name)
+		}
 		err = updateStatus(cr, out)
 		if err != nil {
 			return managed.ExternalCreation{}, errors.Wrap(err, "cannot update status")
 		}
 	}
-	keepETag(cr, etag)
+	helper.KeepETag(cr, etag)
 
 	return managed.ExternalCreation{
 		ConnectionDetails: managed.ConnectionDetails{},
@@ -255,15 +269,14 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalUpdate{}, errors.New(errNotPipelineConfig)
 	}
 
+	cr.Spec.ForProvider.Name = meta.GetExternalName(cr)
+
 	requestBody, err := mapAPIToDtoPipelineConfig(ctx, c.kube, cr.Spec.ForProvider)
 	if err != nil {
 		return managed.ExternalUpdate{}, errors.Wrap(err, "cannot map the api request to dto")
 	}
 
-	etag := ""
-	if cr.Annotations != nil {
-		etag = cr.Annotations["gocd.crossplane.io/etag"]
-	}
+	etag := helper.GetETag(cr)
 	out, etag, err := c.service.Update(ctx, etag, requestBody)
 	if err != nil {
 		return managed.ExternalUpdate{}, errors.Wrap(err, "cannot update pipeline config")
@@ -275,11 +288,12 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 	}
 	cr.Status.EnvironmentVariableHashes = hashes
 
-	keepETag(cr, etag)
+	helper.KeepETag(cr, etag)
 	err = updateStatus(cr, out)
 	if err != nil {
 		return managed.ExternalUpdate{}, errors.Wrap(err, "cannot update status")
 	}
+
 	return managed.ExternalUpdate{
 		ConnectionDetails: managed.ConnectionDetails{},
 	}, nil
@@ -291,8 +305,7 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalDelete{}, errors.New(errNotPipelineConfig)
 	}
 
-	err := c.service.Delete(ctx, cr.Spec.ForProvider.Name)
-	if err != nil {
+	if err := c.service.Delete(ctx, meta.GetExternalName(cr)); err != nil {
 		return managed.ExternalDelete{}, errors.Wrap(err, "cannot delete pipeline config")
 	}
 	return managed.ExternalDelete{}, nil
@@ -300,15 +313,6 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.Ext
 
 func (c *external) Disconnect(context.Context) error {
 	return nil
-}
-
-func keepETag(pc *v1alpha1.PipelineConfig, etag string) {
-	if pc.Annotations == nil {
-		pc.Annotations = map[string]string{}
-	}
-	if etag != "" {
-		pc.Annotations["gocd.crossplane.io/etag"] = etag
-	}
 }
 
 func updateStatus(pc *v1alpha1.PipelineConfig, got *gocd.PipelineConfig) error {
@@ -323,6 +327,9 @@ func updateStatus(pc *v1alpha1.PipelineConfig, got *gocd.PipelineConfig) error {
 func isUpToDate(ctx context.Context, kube client.Client, pc *v1alpha1.PipelineConfig, got *gocd.PipelineConfig) (bool, error) {
 	specHashes, err := calculateHashes(ctx, kube, pc.Spec.ForProvider)
 	if err != nil {
+		if k8serrors.IsNotFound(errors.Cause(err)) {
+			return false, nil
+		}
 		return false, errors.Wrap(err, "cannot calculate hashes from spec")
 	}
 

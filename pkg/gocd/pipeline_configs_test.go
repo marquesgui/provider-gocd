@@ -1,8 +1,11 @@
 package gocd_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -155,7 +158,7 @@ func TestEquals(t *testing.T) {
 			},
 			b: &gocd.PipelineConfigOrigin{
 				Type:  ptr.ToPtr(gocd.PipelineConfigOriginTypeGoCD),
-				ID:    ptr.ToPtr("id"),
+				ID:    ptr.ToPtr("other-id"),
 				Links: nil,
 			},
 			isEqual: false,
@@ -168,5 +171,82 @@ func TestEquals(t *testing.T) {
 				t.Fail()
 			}
 		})
+	}
+}
+
+func TestPipelineConfigsService_Get(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("ETag", "etag")
+		fmt.Fprintln(w, `{"name": "test-pipeline", "group": "sample"}`)
+	}))
+	defer ts.Close()
+
+	client, _ := gocd.New(gocd.Config{BaseURL: ts.URL})
+	pc, etag, err := client.PipelineConfigs().Get(context.Background(), "test-pipeline")
+
+	if err != nil {
+		t.Fatalf("PipelineConfigs.Get returned error: %v", err)
+	}
+	if etag != "etag" {
+		t.Errorf("Expected etag 'etag', got %s", etag)
+	}
+	if *pc.Name != "test-pipeline" {
+		t.Errorf("Expected name 'test-pipeline', got %s", *pc.Name)
+	}
+}
+
+func TestPipelineConfigsService_Create(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("ETag", "new-etag")
+		fmt.Fprintln(w, `{"name": "new-pipeline", "group": "sample"}`)
+	}))
+	defer ts.Close()
+
+	client, _ := gocd.New(gocd.Config{BaseURL: ts.URL})
+	pc, etag, err := client.PipelineConfigs().Create(context.Background(), &gocd.PipelineConfig{Name: ptr.ToPtr("new-pipeline"), Group: ptr.ToPtr("sample")})
+
+	if err != nil {
+		t.Fatalf("PipelineConfigs.Create returned error: %v", err)
+	}
+	if etag != "new-etag" {
+		t.Errorf("Expected etag 'new-etag', got %s", etag)
+	}
+	if *pc.Name != "new-pipeline" {
+		t.Errorf("Expected name 'new-pipeline', got %s", *pc.Name)
+	}
+}
+
+func TestPipelineConfigsService_Update(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("If-Match") != "old-etag" {
+			t.Errorf("Expected If-Match 'old-etag', got %s", r.Header.Get("If-Match"))
+		}
+		w.Header().Set("ETag", "new-etag")
+		fmt.Fprintln(w, `{"name": "test-pipeline", "group": "sample"}`)
+	}))
+	defer ts.Close()
+
+	client, _ := gocd.New(gocd.Config{BaseURL: ts.URL})
+	_, etag, err := client.PipelineConfigs().Update(context.Background(), "old-etag", &gocd.PipelineConfig{Name: ptr.ToPtr("test-pipeline")})
+
+	if err != nil {
+		t.Fatalf("PipelineConfigs.Update returned error: %v", err)
+	}
+	if etag != "new-etag" {
+		t.Errorf("Expected etag 'new-etag', got %s", etag)
+	}
+}
+
+func TestPipelineConfigsService_Delete(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer ts.Close()
+
+	client, _ := gocd.New(gocd.Config{BaseURL: ts.URL})
+	err := client.PipelineConfigs().Delete(context.Background(), "test-pipeline")
+
+	if err != nil {
+		t.Fatalf("PipelineConfigs.Delete returned error: %v", err)
 	}
 }

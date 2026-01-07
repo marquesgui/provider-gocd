@@ -757,7 +757,7 @@ type PipelineConfigForProvider struct { //nolint:recvcheck
 	// +kubebuilder:default:="none"
 	LockBehavior LockBehavior `json:"lockBehavior,omitempty"`
 	// Name is the name of the pipeline.
-	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Optional
 	Name string `json:"name,omitempty"`
 	// Template is the name of the pipeline template to use.
 	// +kubebuilder:validation:Optional

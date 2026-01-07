@@ -32,7 +32,8 @@ type ConfigProperty struct {
 }
 
 type ElasticAgentProfileParameters struct {
-	ID               string           `json:"id"`
+	// +kubebuilder:validation:Optional
+	ID               string           `json:"id,omitempty"`
 	ClusterProfileID string           `json:"clusterProfileID"`
 	Properties       []ConfigProperty `json:"properties"`
 }

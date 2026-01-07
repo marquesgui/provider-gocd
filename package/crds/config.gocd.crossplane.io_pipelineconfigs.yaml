@@ -3191,8 +3191,6 @@ spec:
                     - attributes
                     - type
                     type: object
-                required:
-                - name
                 type: object
               managementPolicies:
                 default:

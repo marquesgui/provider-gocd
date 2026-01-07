@@ -13,7 +13,8 @@ import (
 // AuthorizationConfigurationParameters are the configurable fields of an AuthorizationConfiguration.
 type AuthorizationConfigurationParameters struct {
 	// The identifier of the authorization configuration.
-	ID string `json:"id"`
+	// +kubebuilder:validation:Optional
+	ID string `json:"id,omitempty"`
 	// The plugin identifier of the authorization plugin.
 	PluginID string `json:"pluginId"`
 	// Allow only those users to login who have explicitly been added by an administrator.
